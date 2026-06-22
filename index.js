@@ -50,52 +50,43 @@ function getHistory(phone) {
 // Limpiar estados viejos cada 30 min
 setInterval(() => {
   const now = Date.now();
-  for (const [phone, state] of userStates) {
+  for (const [phone, state] of userStates.entries()) {
     if (now - state.ts > 30 * 60 * 1000) userStates.delete(phone);
   }
-}, 60 * 1000);
+}, 30 * 60 * 1000);
 
-// ── ANTI-BAN: delays realistas ───────────────
-function randomDelay(min, max) {
-  return new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * (max - min + 1)) + min));
-}
-
-async function replyWithTyping(msg, text) {
+// ── Enviar mensaje con "escribiendo..." ──────
+async function sendWithTyping(contact, text) {
   try {
-    const chat = await msg.getChat();
-    await chat.sendStateTyping();
-    const typingTime = Math.min(text.length * 5 + 200, 800);
-    await randomDelay(typingTime, typingTime + 300);
-    await chat.clearState();
-    return msg.reply(text);
+    await contact.sendStateTyping();
+    await new Promise(r => setTimeout(r, Math.min(1500, text.length * 10)));
+    await contact.sendMessage(text);
   } catch {
-    return msg.reply(text);
+    // fallback
+    try { await contact.sendMessage(text); } catch {}
   }
 }
 
-async function sendWithTyping(phone, text) {
+// ── safeSend: envía a un chat por ID ──────────
+async function safeSend(chatId, text) {
   try {
-    const chat = await client.getChatById(ensurePhoneFormat(phone));
-    await chat.sendStateTyping();
-    const typingTime = Math.min(text.length * 5 + 200, 800);
-    await randomDelay(typingTime, typingTime + 300);
-    await chat.clearState();
-    return client.sendMessage(ensurePhoneFormat(phone), text);
-  } catch {
-    return client.sendMessage(ensurePhoneFormat(phone), text);
+    const chat = await client.getChatById(chatId);
+    await sendWithTyping(chat, text);
+  } catch (err) {
+    console.error(`Error enviando a ${chatId}:`, err.message);
   }
 }
 
-// ── TIMEOUT PARA PEDIDOS SIN WORKER ─────────
+// ── TIMEOUT PARA PEDIDOS PENDIENTES ──────────
 setInterval(() => {
   const pending = db.getPendingOrders();
   const now = Date.now();
-  const totalWorkers = db.getWorkerCount();
-  const availableWorkers = db.getAvailableWorkerCount();
-
   for (const order of pending) {
     const createdAt = new Date(order.createdAt).getTime();
     const elapsed = (now - createdAt) / 1000 / 60;
+
+    const totalWorkers = db.getWorkerCount();
+    const availableWorkers = db.getAvailableWorkerCount();
 
     // Si no hay workers REGISTRADOS, avisar altiro
     if (totalWorkers === 0 && !order.notifiedTimeout) {
@@ -222,9 +213,6 @@ client.on('ready', () => {
   }
   console.log(``);
 
-  // Iniciar panel web
-  web.start(config.WEB_PANEL_PORT);
-
   // Escuchar eventos del panel web
   web.onEvent((type, orderId) => {
     const order = db.getOrder(orderId);
@@ -238,440 +226,299 @@ client.on('ready', () => {
     } else if (type === 'entregado') {
       safeSend(order.phone, `✅ *Pedido #${orderId} entregado!*\nGracias por elegirnos 😊\n\nSi querés calificar a ${order.workerName}, respondé con una nota del 1 al 10.`);
       if (isGroupConfigured()) {
-        safeSend(config.GRUPO_WORKERS_ID, `✅ *Pedido #${orderId} entregado por ${order.workerName}*`);
+        safeSend(config.GRUPO_WORKERS_ID, `✅ *Pedido #${orderId} entregado* por ${order.workerName}`);
       }
     }
   });
-
-  // Mensaje de prueba al grupo
-  if (isGroupConfigured()) {
-    safeSend(config.GRUPO_WORKERS_ID, '🤖 *Bot de delivery conectado y operativo!*\nYa puedo recibir pedidos.')
-      .then(() => console.log('✅ Mensaje de prueba enviado al grupo'))
-      .catch(err => console.error('❌ Error al enviar mensaje de prueba al grupo:', err.message.substring(0, 100)));
-  }
 });
 
-client.on('disconnected', (reason) => {
-  console.log('❌ Desconectado:', reason);
+// ── MANEJO DE MENSAJES ───────────────────────
+
+client.on('message', async (msg) => {
+  // Ignorar mensajes de grupos si no es el grupo configurado
+  const chat = await msg.getChat();
+  const isGroup = chat.isGroup;
+  const chatId = msg.from;
+
+  // Si es un grupo pero NO es el grupo de workers, lo ignoramos
+  if (isGroup && chatId !== config.GRUPO_WORKERS_ID) {
+    return;
+  }
+
+  const phone = msg.author || msg.from; // En grupos msg.author es quien manda
+  const text = msg.body?.trim() || '';
+
+  // ── LÓGICA PRINCIPAL ──────────────────────
+
+  if (isGroup && chatId === config.GRUPO_WORKERS_ID) {
+    // ── MENSAJES DEL GRUPO DE WORKERS ──────
+    await handleWorkerMessage(msg, chat, phone, text);
+    return;
+  }
+
+  // ── MENSAJES PRIVADOS (CLIENTES) ─────────
+  await handleClientMessage(msg, chat, phone, text);
 });
 
-// ── RUTEADOR PRINCIPAL ───────────────────────
-client.on('message', async (message) => {
-  try {
-    // Ignorar mensajes viejos
-    if (message.timestamp && (Date.now() / 1000) - message.timestamp > 30) return;
+// ── HANDLER: WORKERS ──────────────────────────
 
-    const isGroup = (await message.getChat()).isGroup;
-    if (isGroup) return handleGroupMessage(message);
-    await handleClientMessage(message);
-  } catch (err) {
-    console.error('Error procesando:', err);
-  }
-});
-
-// ── AYUDANTES ─────────────────────────────────
-function mapsLink(lat, lng) {
-  return `https://maps.google.com/maps?q=${lat},${lng}`;
-}
-
-async function formatPhone(phone) {
-  return await getDisplayPhone(phone);
-}
-
-async function getRealPhone(message) {
-  return message.from;
-}
-
-// Obtener número visible para wa.me
-async function getDisplayPhone(phone) {
-  try {
-    const raw = phone.replace(/@.*$/, '').replace(/\D/g, '');
-    if (!raw.startsWith('22') && raw.length >= 10) return raw;
-    // Intentar resolver el contacto real
-    try {
-      const contact = await client.getContactById(phone);
-      const n = contact.number || '';
-      if (n && n.length >= 10 && !n.startsWith('22')) return n;
-    } catch {}
-    return raw;
-  } catch {
-    return phone.replace(/@.*$/, '').replace(/\D/g, '');
-  }
-}
-
-// Helper para enviar mensaje a un cliente: usa el ID exacto como está
-function ensurePhoneFormat(phone) {
-  if (!phone) return phone;
-  if (phone.includes('@')) return phone;
-  return phone + '@c.us';
-}
-
-// Extraer número real para wa.me (solo los dígitos, sin @ni letras)
-function phoneForLink(phone) {
-  if (!phone) return '';
-  return phone.replace(/@.*$/, '').replace(/\D/g, '');
-}
-
-// Enviar mensaje directo (sin typing) asegurando formato de número
-function safeSend(phone, text) {
-  return client.sendMessage(ensurePhoneFormat(phone), text).catch(e => {
-    console.error('Error enviando a', phone, e.message.substring(0, 80));
-  });
-}
-
-async function getWorkerDisplayName(phone) {
-  const worker = db.getWorker(phone);
-  if (worker && worker.name) return worker.name;
-  try {
-    const contact = await client.getContactById(phone);
-    return contact.pushname || contact.name || contact.shortName || formatPhone(phone);
-  } catch {
-    return formatPhone(phone);
-  }
-}
-
-async function getGroupName() {
-  try {
-    if (!config.GRUPO_WORKERS_ID || config.GRUPO_WORKERS_ID === 'REEMPLAZA_CON_ID_DEL_GRUPO@g.us') return null;
-    const chat = await client.getChatById(config.GRUPO_WORKERS_ID);
-    return chat.name;
-  } catch {
-    return null;
-  }
-}
-
-// ── CLIENTE (MENSAJES DIRECTOS) ─────────────
-async function handleClientMessage(msg) {
-  // Solo procesar texto o ubicación
-  if (msg.type !== 'chat' && msg.type !== 'location') return;
-  if (msg.type === 'location') return handleLocation(msg, msg.from);
-
-  const body = (msg.body || '').trim();
-  if (!body) return;
-  // Ignorar base64 (media embed)
-  if (body.length > 100 && /^[A-Za-z0-9+/=]+$/.test(body)) return;
-
-  const phone = msg.from;
-  const lower = body.toLowerCase();
-  const state = userStates.get(phone) || null;
-
-  // ── CANCELAR ──
-  if (/cancelar|cancelo|ya no|me arrepenti|anular|déjalo|no lo quiero/i.test(lower)) {
-    return handleCancelRequest(msg, phone);
-  }
-
-  // ── MODIFICAR ──
-  const mod = body.match(/^modificar\s+#?(\d+)\s+(.+)/i);
-  if (mod) {
-    const o = db.getOrder(parseInt(mod[1]));
-    if (o && o.phone === phone && o.status === 'pendiente' && db.updateOrderDetails(o.id, phone, mod[2])) {
-      await msg.reply(`📝 *Pedido #${o.id} actualizado*\n${mod[2]}`);
-      if (isGroupConfigured()) safeSend(config.GRUPO_WORKERS_ID, `📝 Pedido #${o.id}: ${mod[2]}`);
-      web.notifyClients();
-    } else {
-      await msg.reply('❌ No se pudo modificar. Solo pedidos pendientes.');
-    }
-    return;
-  }
-
-  // ── AGREGAR ──
-  const add = body.match(/^(?:agreg[ai]r|pon[ei]le|sum[ai]r|m[áa]s)\s+(?:#?(\d+)\s+)?(.+)/i);
-  if (add) {
-    const id = add[1] ? parseInt(add[1]) : null;
-    const item = add[2];
-    const orders = id ? [db.getOrder(id)].filter(Boolean) : db.getActiveClientOrders(phone);
-    const order = orders.find(o => o && o.phone === phone);
-    if (order) {
-      if (order.status === 'pendiente') {
-        db.updateOrderDetails(order.id, phone, order.details + ' + ' + item);
-        await msg.reply(`✅ Agregado: "${item}" al pedido #${order.id}`);
-      } else if (order.status === 'asignado' || order.status === 'en_camino') {
-        await msg.reply(`✅ Avisamos al repartidor que agregue "${item}"`);
-        if (order.workerPhone) safeSend(order.workerPhone, `📝 Cliente agregó al #${order.id}: "${item}"`);
-      } else {
-        await msg.reply('❌ Pedido ya entregado o cancelado.');
-      }
-      if (isGroupConfigured()) safeSend(config.GRUPO_WORKERS_ID, `📝 Pedido #${order.id}: +${item}`);
-      web.notifyClients();
-    } else {
-      await msg.reply('❌ No encontré ese pedido.');
-    }
-    return;
-  }
-
-  // ── ESTADO ──
-  if (/^(estado|status)$/i.test(lower)) {
-    const orders = db.getClientOrders(phone);
-    return msg.reply(orders.length ? '📋 Tus pedidos:\n' + orders.map(o => `#${o.id} - ${o.status}${o.workerName ? ' ('+o.workerName+')' : ''}`).join('\n') : 'No tenés pedidos.');
-  }
-
-  // Guardar en histórico (si hay estado activo)
-  if (state) {
-    if (!state.history) state.history = [];
-    state.history.push({ role: 'user', text: body, ts: Date.now() });
-    if (state.history.length > 10) state.history = state.history.slice(-10);
-  }
-
-  // ── PEDIR / HOLA (solo sin estado activo) ──
-  if (!state || !state.step) {
-    if (/pedir|pedido|hola|buenas|menu|ayuda|empezar|quiero|quisiera|necesito|comprar/i.test(lower)) {
-      // Quiero X directo
-      const want = body.match(/^(?:quiero|quisiera|necesito|queria|me trae|me puede|me compra)\s+(.+)/i);
-      if (want && want[1].length >= 3) {
-        userStates.set(phone, { step: 'awaiting_location', data: { details: want[1] }, ts: Date.now() });
-        return msg.reply(tmpl.askLocation(want[1]));
-      }
-
-      userStates.set(phone, { step: 'awaiting_order', data: {}, ts: Date.now() });
-
-      // Intentar IA para saludos
-      if (isAiConfigured() && /hola|buenas|ayuda|empezar/i.test(lower)) {
-        const history = (userStates.get(phone)?.history || []).slice(-4);
-        const aiResp = await ai.generateResponse(body, { step: 'awaiting_order', history }).catch(() => null);
-        if (aiResp) return msg.reply(aiResp);
-      }
-      return msg.reply(`👋 ¡Hola! ¿Qué se te antoja hoy? Decime y coordinamos 😊`);
-    }
-  }
-
-  // ── CANCELAR (seleccionar número) ──
-  if (state && state.step === 'awaiting_cancel_id') {
-    const num = parseInt(lower);
-    if (isNaN(num)) return msg.reply('Decime el número del pedido (ej: 1).');
-    const res = db.cancelOrder(num, phone);
-    if (!res) return msg.reply('No se pudo cancelar. ¿Existe ese pedido?');
-    await msg.reply(tmpl.orderCancelled(num));
-    if (isGroupConfigured()) {
-      const o = db.getOrder(num);
-      safeSend(config.GRUPO_WORKERS_ID, tmpl.orderCancelledGroup(num, o?.workerName || null));
-      if (o?.workerPhone) safeSend(o.workerPhone, `❌ Pedido #${num} cancelado por el cliente.`);
-    }
-    web.notifyClients();
-    userStates.delete(phone);
-    return;
-  }
-
-  // ── ESPERANDO PEDIDO ──
-  if (state && state.step === 'awaiting_order') {
-    if (lower.length < 3) return msg.reply('Escribí qué querés pedir (min 3 caracteres).');
-    userStates.set(phone, { step: 'awaiting_location', data: { details: body }, ts: Date.now() });
-    return msg.reply(tmpl.askLocation(body));
-  }
-
-  // ── ESPERANDO UBICACIÓN ──
-  if (state && state.step === 'awaiting_location') {
-    return msg.reply('📍 Compartime tu ubicación. Clip 📎 > Ubicación > Enviar ubicación actual');
-  }
-
-  // ── DEFAULT ──
-  if (state) userStates.delete(phone);
-
-  if (isAiConfigured()) {
-    const active = db.getActiveClientOrders(phone);
-    const history = (state?.history || []).slice(-4);
-    const aiResp = await ai.generateResponse(body, { hasActiveOrders: active.length > 0, history }).catch(() => null);
-    if (aiResp) return msg.reply(aiResp);
-  }
-  return msg.reply(`😊 No entendí. Escribí *"pedir"*, *"cancelar"* o *"estado"*.`);
-}
-
-// ── MANEJAR UBICACIÓN ────────────────────────
-async function handleLocation(msg, phone) {
-  const state = getState(phone);
-  if (!state || state.step !== 'awaiting_location' || !state.data.details) {
-    return replyWithTyping(msg, 'No estaba esperando una ubicación. Escribí *"pedir"* para empezar.');
-  }
-
-  const loc = msg.location;
-  const link = mapsLink(loc.latitude, loc.longitude);
-
-  const orderId = db.createOrder({
-    phone,
-    details: state.data.details,
-    link,
-    lat: loc.latitude,
-    lng: loc.longitude,
-  });
-
-  clearState(phone);
-  await replyWithTyping(msg, tmpl.orderConfirmed(orderId, state.data.details, link));
-
-  // Calcular número visible para wa.me y guardarlo en el pedido
-  const displayPhone = await getDisplayPhone(phone);
-  db.updateOrderDisplayPhone(orderId, displayPhone);
-
-  // Notificar al grupo de workers
-  if (isGroupConfigured()) {
-    await sendWithTyping(
-      config.GRUPO_WORKERS_ID,
-      tmpl.newOrderGroup(orderId, state.data.details, link, displayPhone)
-    );
-  }
-
-  web.notifyClients();
-}
-
-// ── CANCELAR PEDIDO ──────────────────────────
-async function handleCancelRequest(msg, phone) {
-  const active = db.getActiveClientOrders(phone);
-  if (active.length === 0) {
-    return replyWithTyping(msg, tmpl.noActiveOrders());
-  }
-
-  if (active.length === 1) {
-    const order = active[0];
-    const result = db.cancelOrder(order.id, phone);
-    if (!result) return replyWithTyping(msg, 'No se pudo cancelar el pedido.');
-    await replyWithTyping(msg, tmpl.orderCancelled(order.id));
-
-    if (isGroupConfigured()) {
-      await sendWithTyping(
-        config.GRUPO_WORKERS_ID,
-        tmpl.orderCancelledGroup(order.id, order.workerName || null)
-      );
-
-      if (order.workerPhone) {
-        try {
-          await safeSend(order.workerPhone, `❌ *Pedido #${order.id} cancelado por el cliente*\nYa no tenés que ir. Quedás libre para otro pedido.`);
-        } catch (e) {
-          console.error('Error notificando al worker:', e.message.substring(0, 80));
-        }
-      }
-    }
-    web.notifyClients();
-    return;
-  }
-
-  // Múltiples pedidos activos
-  setState(phone, 'awaiting_cancel_id');
-  return replyWithTyping(msg, tmpl.askCancelOrder(active));
-}
-
-// ── GRUPO DE WORKERS ─────────────────────────
-async function handleGroupMessage(msg) {
-  const text = msg.body.trim();
+async function handleWorkerMessage(msg, chat, phone, text) {
   const lower = text.toLowerCase();
-  const senderPhone = msg.author; // quien escribe en el grupo
+  const sender = await msg.getContact();
+  const senderName = sender.pushname || sender.name || 'Repartidor';
 
-  if (!senderPhone) return; // mensajes del sistema
+  // Registrar / entrar al sistema
+  if (lower === 'entrar' || lower === 'registrar') {
+    db.registerWorker(phone, senderName);
+    await sendWithTyping(chat, `✅ ${senderName}, quedaste registrado como repartidor.\nCuando estés libre para tomar pedidos, escribí "disponible".`);
+    return;
+  }
 
-  // Auto-marcar disponible al enviar cualquier mensaje
-  db.markWorkerAvailable(senderPhone);
+  // Ver si el worker existe
+  const worker = db.getWorker(phone);
+  if (!worker) {
+    await sendWithTyping(chat, `👋 Bienvenido al grupo de repartidores.\nPara empezar escribí "entrar" o "registrar".`);
+    return;
+  }
 
-  // ── COMANDO LIBERAR ──
-  const liberarMatch = lower.match(/^liberar\s+(\d+)/);
-  if (liberarMatch) {
-    const orderId = parseInt(liberarMatch[1]);
-    const ok = db.releaseOrder(orderId, senderPhone);
+  // Disponible
+  if (lower === 'disponible' || lower === 'libre') {
+    const ok = db.markWorkerAvailable(phone);
     if (ok) {
-      const order = db.getOrder(orderId);
-      const orderPhone = order ? order.phone : null;
-      await replyWithTyping(msg, `🔄 *Pedido #${orderId} liberado*\nQueda disponible para otro worker.`);
-      if (isGroupConfigured()) {
-        await sendWithTyping(config.GRUPO_WORKERS_ID, `🔄 *Pedido #${orderId} liberado*\nEstá disponible de nuevo para tomar.`);
+      await sendWithTyping(chat, `✅ Ahora estás disponible para tomar pedidos.`);
+
+      // Si hay pedidos pendientes, mostrar el más antiguo
+      const pending = db.getPendingOrders();
+      if (pending.length > 0) {
+        const first = pending[0];
+        const fecha = new Date(first.createdAt).toLocaleString();
+        await sendWithTyping(chat, `📦 *Pedido #${first.id}* - ${fecha}\n📝 ${first.details}\n📱 Cliente\n🔗 ${first.link}\n\nPara tomarlo, escribí "tomar ${first.id}"`);
       }
-      if (orderPhone) {
-        try {
-          await sendWithTyping(orderPhone, `🔄 *Pedido #${orderId}*\nEl repartidor lo liberó. En breve te asignamos otro.`);
-        } catch (e) { console.error('Error:', e.message.substring(0, 80)); }
-      }
-      web.notifyClients();
     } else {
-      await replyWithTyping(msg, `❌ No se pudo liberar el pedido #${orderId}. ¿No te pertenece o ya está entregado?`);
+      await sendWithTyping(chat, `❌ No podés marcarte disponible mientras tenés un pedido activo.`);
     }
     return;
   }
 
-  // ── DISPONIBLE / OCUPADO ──
-  if (lower === 'disponible' || lower === 'libre') {
-    db.markWorkerAvailable(senderPhone);
-    await replyWithTyping(msg, '✅ Estás marcado como *disponible* para tomar pedidos.');
+  // Tomar pedido
+  const tomarMatch = lower.match(/^tomar\s+(\d+)$/);
+  if (tomarMatch) {
+    const orderId = parseInt(tomarMatch[1]);
+    const result = db.assignOrder(orderId, phone, senderName);
+    if (result) {
+      const order = db.getOrder(orderId);
+      await sendWithTyping(chat, `✅ *Pedido #${orderId} asignado a ${senderName}*`);
+      await safeSend(order.phone, `🛵 *Tu pedido #${orderId} fue asignado!*\nRepartidor: ${senderName}\n\n📝 ${order.details}\n📍 ${order.link}\n\nEstamos preparando tu pedido. Pronto lo tendrás.`);
+      web.notifyClients();
+    } else {
+      await sendWithTyping(chat, `❌ El pedido #${orderId} ya no está disponible o no existe.`);
+    }
     return;
   }
 
-  // ── COMANDO !id ──
-  if (lower === '!id') {
-    const chat = await msg.getChat();
-    await replyWithTyping(msg, `🆔 ID de este grupo:\n\`${chat.id._serialized}\`\n\nCopialo en config.js como:\n\`GRUPO_WORKERS_ID: '${chat.id._serialized}',\``);
-    return;
-  }
-
-  // ── COMANDO !test ──
-  if (lower === '!test') {
-    await replyWithTyping(msg, `✅ Bot funcionando\n📱 Conectado como: ${client.info.pushname}\n👥 Este grupo: ${(await msg.getChat()).id._serialized}\n🤖 AI: ${isAiConfigured() ? 'Sí' : 'No'}`);
-    return;
-  }
-
-  // ── REGISTRO ──
-  const nameMatch = lower.match(/^me\s*llamo\s+(.+)/);
-  if (nameMatch) {
-    const name = nameMatch[1].trim();
-    db.registerWorker(senderPhone, name);
-    await replyWithTyping(msg, tmpl.registered(name));
-    return;
-  }
-
-  // ── ASIGNAR PEDIDO ──
-  // Patrones: "lo tomo", "yo lo tomo", "tomo el #1", "#1", solo "1"
-  let orderId = null;
-
-  const tomoWithId = lower.match(/^(?:yo\s+)?(?:tomo|agarro)\s+(?:el\s+)?#?(\d+)/);
-  const justNumber = lower.match(/^#?(\d+)$/);
-  const tomoSimple = lower.match(/^(lo\s+tomo|yo\s+(lo\s+)?tomo|yo\s+agarro|lo\s+agarro|tomado)$/);
-
-  if (tomoWithId) {
-    orderId = parseInt(tomoWithId[1]);
-  } else if (justNumber) {
-    orderId = parseInt(justNumber[1]);
-  } else if (tomoSimple) {
+  // Listar pedidos pendientes
+  if (lower === 'pedidos' || lower === 'lista') {
     const pending = db.getPendingOrders();
     if (pending.length === 0) {
-      return replyWithTyping(msg, tmpl.noPendingOrders());
+      await sendWithTyping(chat, '✅ No hay pedidos pendientes.');
+      return;
     }
-    if (pending.length === 1) {
-      orderId = pending[0].id;
+    let response = `📋 *Pedidos pendientes:*\n`;
+    for (const o of pending) {
+      const fecha = new Date(o.createdAt).toLocaleString();
+      response += `\n#${o.id} - ${fecha}\n📝 ${o.details}\n🔗 ${o.link}\n`;
+    }
+    await sendWithTyping(chat, response);
+    return;
+  }
+
+  // Ver mi pedido activo
+  if (lower === 'mi pedido' || lower === 'mi pedido') {
+    const active = db.getActiveWorkerOrder(phone);
+    if (!active) {
+      await sendWithTyping(chat, '❌ No tenés ningún pedido activo.');
+      return;
+    }
+    await sendWithTyping(chat, `📦 *Pedido #${active.id}* - ${active.status}\n📝 ${active.details}\n📍 ${active.link}\n🕐 ${new Date(active.createdAt).toLocaleString()}`);
+    return;
+  }
+
+  // Ayuda
+  if (lower === 'ayuda' || lower === 'comandos') {
+    await sendWithTyping(chat, `📋 *Comandos para repartidores:*\n\n• "entrar" - Registrarse\n• "disponible" - Estar libre\n• "tomar #" - Tomar pedido\n• "pedidos" - Ver pendientes\n• "mi pedido" - Ver mi pedido activo\n• "ayuda" - Esta ayuda`);
+    return;
+  }
+}
+
+// ── HANDLER: CLIENTES ─────────────────────────
+
+async function handleClientMessage(msg, chat, phone, text) {
+  const lower = text.toLowerCase();
+  const state = getState(phone);
+  const history = getHistory(phone);
+
+  // ── CANCELAR ────────────────────────────────
+  if (lower === 'cancelar') {
+    const actives = db.getActiveClientOrders(phone);
+    if (actives.length === 0) {
+      await sendWithTyping(chat, '❌ No tenés pedidos activos para cancelar.');
+      return;
+    }
+    setState(phone, 'CONFIRMAR_CANCELAR', { orders: actives });
+    let msg = '¿Cuál querés cancelar?\n';
+    actives.forEach((o, i) => {
+      msg += `\n${i + 1}. #${o.id} - ${o.details.substring(0, 30)}`;
+    });
+    msg += '\n\nRespondé con el número (1, 2, ...) o "ninguno".';
+    await sendWithTyping(chat, msg);
+    return;
+  }
+
+  if (state?.step === 'CONFIRMAR_CANCELAR') {
+    const idx = parseInt(text) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= state.data.orders.length) {
+      await sendWithTyping(chat, '❌ Número inválido. Respondé con un número de la lista o "ninguno".');
+      return;
+    }
+    const order = state.data.orders[idx];
+    const oldStatus = db.cancelOrder(order.id, phone);
+    if (oldStatus) {
+      await sendWithTyping(chat, `✅ *Pedido #${order.id} cancelado.*`);
+      if (isGroupConfigured()) {
+        safeSend(config.GRUPO_WORKERS_ID, `❌ *Pedido #${order.id} cancelado* por el cliente.`);
+      }
+      web.notifyClients();
     } else {
-      return replyWithTyping(msg, tmpl.multiplePending(pending.map((o) => o.id)));
+      await sendWithTyping(chat, '❌ No se pudo cancelar el pedido.');
+    }
+    clearState(phone);
+    return;
+  }
+
+  // ── INICIO / PEDIR ──────────────────────────
+  if (lower === 'hola' || lower === 'pedir' || lower === 'menu' || lower === 'inicio') {
+    const actives = db.getActiveClientOrders(phone);
+    if (actives.length > 0) {
+      let msg = '📋 *Tus pedidos activos:*\n';
+      actives.forEach(o => {
+        msg += `\n#${o.id} - ${o.details.substring(0, 30)} - ${o.status}`;
+      });
+      msg += '\n\n¿Querés hacer otro pedido? Escribí "pedir"';
+      await sendWithTyping(chat, msg);
+      return;
+    }
+
+    // Si tiene AI, le damos la bienvenida con AI
+    if (isAiConfigured()) {
+      await sendWithTyping(chat, tmpl.welcome(phone));
+      return;
+    }
+
+    // Sin AI: flujo manual
+    await sendWithTyping(chat, tmpl.welcome(phone));
+    setState(phone, 'ESPERANDO_DETALLES');
+    return;
+  }
+
+  // ── FLUJO SIN AI: ESPERANDO_DETALLES ────────
+  if (state?.step === 'ESPERANDO_DETALLES') {
+    setState(phone, 'ESPERANDO_UBICACION', { details: text });
+    await sendWithTyping(chat, tmpl.pedirUbicacion());
+    return;
+  }
+
+  if (state?.step === 'ESPERANDO_UBICACION') {
+    // Si manda una ubicacion
+    if (msg.location) {
+      const orderId = db.createOrder({
+        phone,
+        details: state.data.details,
+        link: `https://www.google.com/maps?q=${msg.location.latitude},${msg.location.longitude}`,
+        lat: msg.location.latitude,
+        lng: msg.location.longitude,
+      });
+      await sendWithTyping(chat, tmpl.orderCreated(orderId));
+      if (isGroupConfigured()) {
+        const order = db.getOrder(orderId);
+        await safeSend(config.GRUPO_WORKERS_ID,
+          `📦 *Nuevo pedido #${orderId}!*\n\n📝 ${order.details}\n📍 ${order.link}\n📱 Cliente\n\nPara tomarlo, escribí "tomar ${orderId}"`);
+      }
+      clearState(phone);
+      web.notifyClients();
+      return;
+    }
+
+    // Si manda un link (maps)
+    if (text.startsWith('http')) {
+      const orderId = db.createOrder({
+        phone,
+        details: state.data.details,
+        link: text,
+      });
+      await sendWithTyping(chat, tmpl.orderCreated(orderId));
+      if (isGroupConfigured()) {
+        const order = db.getOrder(orderId);
+        await safeSend(config.GRUPO_WORKERS_ID,
+          `📦 *Nuevo pedido #${orderId}!*\n\n📝 ${order.details}\n📍 ${order.link}\n📱 Cliente\n\nPara tomarlo, escribí "tomar ${orderId}"`);
+      }
+      clearState(phone);
+      web.notifyClients();
+      return;
+    }
+
+    // Si manda texto como ubicación
+    const orderId = db.createOrder({
+      phone,
+      details: state.data.details,
+      link: `https://www.google.com/maps?q=${encodeURIComponent(text)}`,
+    });
+    await sendWithTyping(chat, tmpl.orderCreated(orderId));
+    if (isGroupConfigured()) {
+      const order = db.getOrder(orderId);
+      await safeSend(config.GRUPO_WORKERS_ID,
+        `📦 *Nuevo pedido #${orderId}!*\n\n📝 ${order.details}\n📍 ${order.link}\n📱 Cliente\n\nPara tomarlo, escribí "tomar ${orderId}"`);
+    }
+    clearState(phone);
+    web.notifyClients();
+    return;
+  }
+
+  // ── CON AI: manejo generico ─────────────────
+  if (isAiConfigured() && lower !== 'cancelar') {
+    const aiResponse = await ai.generateResponse({ phone, text, history });
+    if (aiResponse) {
+      // Detectar si la AI quiere crear un pedido
+      if (aiResponse.action === 'crear_pedido') {
+        const orderId = db.createOrder({
+          phone,
+          details: aiResponse.details || text,
+          link: aiResponse.link || '',
+          lat: aiResponse.lat,
+          lng: aiResponse.lng,
+        });
+        await sendWithTyping(chat, tmpl.orderCreated(orderId));
+        if (isGroupConfigured()) {
+          const order = db.getOrder(orderId);
+          await safeSend(config.GRUPO_WORKERS_ID,
+            `📦 *Nuevo pedido #${orderId}!*\n\n📝 ${order.details}\n📍 ${order.link}\n📱 Cliente\n\nPara tomarlo, escribí "tomar ${orderId}"`);
+        }
+        web.notifyClients();
+        return;
+      }
+      await sendWithTyping(chat, aiResponse.text || aiResponse);
+      return;
     }
   }
 
-  if (!orderId) return; // mensaje irrelevante en el grupo
-
-  // Obtener nombre del worker
-  const existingWorker = db.getWorker(senderPhone);
-  if (!existingWorker) {
-    return replyWithTyping(msg, tmpl.needRegistration());
-  }
-
-  const workerName = existingWorker.name;
-
-  // Asignar
-  const ok = db.assignOrder(orderId, senderPhone, workerName);
-  if (!ok) {
-    return replyWithTyping(msg, `❌ No se pudo asignar el pedido #${orderId}. ¿Ya está asignado o cancelado?`);
-  }
-
-  await replyWithTyping(msg, tmpl.orderAssignedGroup(orderId, workerName));
-
-  // Enviar al grupo con datos de contacto del cliente
-  const orderForGroup = db.getOrder(orderId);
-  if (orderForGroup && isGroupConfigured()) {
-    await sendWithTyping(config.GRUPO_WORKERS_ID, tmpl.orderAssignedGroupWithPhone(orderId, workerName, orderForGroup.phoneDisplay || await formatPhone(orderForGroup.phone)));
-  }
-
-  web.notifyClients();
-
-  // Avisar al cliente
-  const order = db.getOrder(orderId);
-  if (order) {
-    try {
-      await sendWithTyping(order.phone, tmpl.orderAssigned(orderId, workerName));
-    } catch (err) {
-      console.error(`Error notificando al cliente ${order.phone}:`, err);
-    }
+  // ── POR DEFECTO ─────────────────────────────
+  if (!state) {
+    await sendWithTyping(chat, tmpl.defaultMsg(phone));
   }
 }
 
 // ── INICIO ───────────────────────────────────
 console.log('🚀 Iniciando bot de delivery...\n');
+
+web.start(config.WEB_PANEL_PORT);
+
 client.initialize();
