@@ -1,0 +1,36 @@
+app = "deliverybot"
+primary_region = "iad"
+kill_signal = "SIGINT"
+kill_timeout = 5
+
+[env]
+  PUPPETEER_HEADLESS = "true"
+  PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+  DB_PATH = "/data/database.json"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.concurrency]]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[mounts]]
+  source = "deliverybot_data"
+  destination = "/data"
+
+[[mounts]]
+  source = "deliverybot_auth"
+  destination = "/app/.wwebjs_auth"

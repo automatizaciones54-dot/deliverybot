@@ -14,7 +14,8 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 
-EXPOSE 3000
-ENV DB_PATH=/app/data/database.json
+RUN mkdir -p /data
+
+EXPOSE 8080
 
 CMD ["node", "index.js"]
