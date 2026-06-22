@@ -189,9 +189,10 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-  try { console.clear(); } catch {}
-  qrcode.generate(qr, { small: true });
-  console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
+  try {
+    try { console.clear(); } catch {}
+    qrcode.generate(qr, { small: true });
+    console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
 
     const qrPath = path.join(__dirname, 'qr.png');
     QRCode.toFile(qrPath, qr, { width: 400, margin: 2 }, (err) => {
@@ -204,6 +205,9 @@ client.on('qr', (qr) => {
         exec(`start "" "${qrPath}"`);
       }
     });
+  } catch (e) {
+    console.error('Error en QR handler:', e.message);
+  }
 });
 
 client.on('authenticated', () => console.log('✅ Autenticado'));
