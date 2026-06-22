@@ -215,7 +215,7 @@ client.on('ready', () => {
   if (config.AI_PROVIDER === 'openai' && config.OPENAI_API_KEY) {
     console.log(`🤖 OpenAI: ✅ ACTIVADO (gpt-4o-mini - $0.15/1M tokens)`);
   } else if (config.AI_PROVIDER === 'gemini' && config.GEMINI_API_KEY) {
-    console.log(`🤖 Gemini AI: ✅ ACTIVADO (gemini-2.5-flash - 20/día free, 2000/día con facturación)`);
+    console.log(`🤖 Gemini AI: ✅ ACTIVADO (gemini-2.0-flash - 20/día free, 2000/día con facturación)`);
   } else {
     console.log(`🤖 AI: ❌ Desactivado - configurá GEMINI_API_KEY u OPENAI_API_KEY en config.js`);
   }

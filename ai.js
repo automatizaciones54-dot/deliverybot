@@ -48,7 +48,7 @@ function buildPrompt(userMessage, context) {
 if (config.AI_PROVIDER === 'gemini' && config.GEMINI_API_KEY) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   let cooldownUntil = 0;
 
   generateResponse = async function (userMessage, context) {
