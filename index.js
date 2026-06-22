@@ -193,16 +193,17 @@ client.on('qr', (qr) => {
   qrcode.generate(qr, { small: true });
   console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
 
-  const qrPath = path.join(__dirname, 'qr.png');
-  QRCode.toFile(qrPath, qr, { width: 400, margin: 2 }, (err) => {
-    if (err) {
-      console.error('Error generando QR:', err.message);
-      return;
-    }
-    console.log(`\n🖼️  QR guardado como imagen: ${qrPath}`);
-    exec(`start "" "${qrPath}"`);
-    console.log('📸 Escaneá la imagen con WhatsApp > Vincular dispositivo');
-  });
+    const qrPath = path.join(__dirname, 'qr.png');
+    QRCode.toFile(qrPath, qr, { width: 400, margin: 2 }, (err) => {
+      if (err) {
+        console.error('Error generando QR:', err.message);
+        return;
+      }
+      console.log(`\n🖼️  QR guardado como imagen: ${qrPath}`);
+      if (process.platform === 'win32') {
+        exec(`start "" "${qrPath}"`);
+      }
+    });
 });
 
 client.on('authenticated', () => console.log('✅ Autenticado'));
