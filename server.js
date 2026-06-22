@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 const config = require('./config');
 const db = require('./database');
 const { MercadoPagoConfig, Preference } = require('mercadopago');
@@ -169,6 +170,12 @@ setTimeout(fetchOrders, 500);
 </script>
 </body>
 </html>`;
+
+app.get('/qr.png', (req, res) => {
+  const p = path.join(__dirname, 'qr.png');
+  if (fs.existsSync(p)) return res.sendFile(p);
+  res.status(404).type('text').send('⚠️ QR no disponible aún. Revisá los logs del deploy.');
+});
 
 app.get('/', (req, res) => {
   res.send(DASHBOARD_HTML);
