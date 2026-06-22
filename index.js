@@ -259,14 +259,22 @@ client.on('disconnected', (reason) => {
 // ── RUTEADOR PRINCIPAL ───────────────────────
 client.on('message', async (message) => {
   try {
-    // Ignorar mensajes viejos
-    if (message.timestamp && (Date.now() / 1000) - message.timestamp > 30) return;
+    const from = message.from;
+    const body = (message.body || '').trim().substring(0, 50);
+    const msgType = message.type;
+    console.log(`📩 Msg de ${from}: tipo=${msgType} texto="${body}"`);
 
-    const isGroup = (await message.getChat()).isGroup;
-    if (isGroup) return handleGroupMessage(message);
+    if (message.timestamp && (Date.now() / 1000) - message.timestamp > 30) {
+      console.log(`⏭️ Msg ignorado (timestamp viejo): ${message.timestamp}`);
+      return;
+    }
+
+    const chat = await message.getChat();
+    if (chat.isGroup) return handleGroupMessage(message);
     await handleClientMessage(message);
   } catch (err) {
-    console.error('Error procesando:', err);
+    console.error('❌ Error procesando mensaje:', err.message.substring(0, 200));
+    console.error(err.stack?.substring(0, 300));
   }
 });
 
@@ -648,6 +656,16 @@ async function handleGroupMessage(msg) {
     }
   }
 }
+
+// ── MANEJAR ERRORES NO CAPTURADOS ────────────
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err.message?.substring(0, 200));
+  console.error(err.stack?.substring(0, 300));
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 Unhandled Rejection:', reason?.message || reason);
+});
 
 // ── INICIO ───────────────────────────────────
 console.log('🚀 Iniciando bot de delivery...\n');
