@@ -23,6 +23,7 @@ function load() {
 
 function saveAtomic(data) {
   const tmp = DB_PATH + '.tmp';
+  fs.mkdirSync(path.dirname(tmp), { recursive: true });
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
   fs.renameSync(tmp, DB_PATH);
 }
