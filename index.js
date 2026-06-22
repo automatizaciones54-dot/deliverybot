@@ -184,7 +184,9 @@ if (config.NAVEGADOR_PATH) {
 }
 
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({
+    dataPath: process.env.LOCAL_AUTH_PATH || '.wwebjs_auth',
+  }),
   puppeteer: puppeteerOpts,
 });
 
