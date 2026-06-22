@@ -189,9 +189,10 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-  console.clear();
-  qrcode.generate(qr, { small: true });
-  console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
+  try {
+    try { console.clear(); } catch {}
+    qrcode.generate(qr, { small: true });
+    console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
 
     const qrPath = path.join(__dirname, 'qr.png');
     QRCode.toFile(qrPath, qr, { width: 400, margin: 2 }, (err) => {
@@ -204,6 +205,9 @@ client.on('qr', (qr) => {
         exec(`start "" "${qrPath}"`);
       }
     });
+  } catch (err) {
+    console.error('Error en QR handler:', err.message);
+  }
 });
 
 client.on('authenticated', () => console.log('✅ Autenticado'));
@@ -221,9 +225,6 @@ client.on('ready', () => {
     console.log(`🤖 AI: ❌ Desactivado - configurá GEMINI_API_KEY u OPENAI_API_KEY en config.js`);
   }
   console.log(``);
-
-  // Iniciar panel web
-  web.start(config.WEB_PANEL_PORT);
 
   // Escuchar eventos del panel web
   web.onEvent((type, orderId) => {
@@ -674,4 +675,7 @@ async function handleGroupMessage(msg) {
 
 // ── INICIO ───────────────────────────────────
 console.log('🚀 Iniciando bot de delivery...\n');
+
+web.start(config.WEB_PANEL_PORT);
+
 client.initialize();

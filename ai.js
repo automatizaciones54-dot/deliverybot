@@ -54,13 +54,16 @@ if (config.AI_PROVIDER === 'gemini' && config.GEMINI_API_KEY) {
   generateResponse = async function (userMessage, context) {
     if (Date.now() < cooldownUntil) return null;
     try {
-      const result = await model.generateContent(buildPrompt(userMessage, context));
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000));
+      const result = await Promise.race([model.generateContent(buildPrompt(userMessage, context)), timeout]);
       const text = result.response.text().trim();
       if (!text) return null;
       return text.substring(0, 500);
     } catch (err) {
       const msg = err.message || '';
-      if (msg.includes('429') || msg.includes('quota') || msg.includes('Quota')) {
+      if (msg.includes('timeout')) {
+        console.log('⏳ Gemini: timeout 15s, respondiendo sin IA');
+      } else if (msg.includes('429') || msg.includes('quota') || msg.includes('Quota')) {
         cooldownUntil = Date.now() + 180000;
         console.log('⏳ Gemini: cuota agotada, salteando IA por 3 min');
       } else if (msg.includes('SAFETY')) {
