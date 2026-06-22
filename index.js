@@ -176,7 +176,10 @@ const puppeteerOpts = {
     '--disable-translate',
     '--disable-features=Translate',
     '--mute-audio',
-    '--window-size=1280,720',
+    '--single-process',
+    '--disable-software-rasterizer',
+    '--disable-cache',
+    '--window-size=800,600',
   ],
 };
 if (config.NAVEGADOR_PATH) {
