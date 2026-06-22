@@ -1,0 +1,153 @@
+╔══════════════════════════════════════════════╗
+║        BOT DE WHATSAPP PARA DELIVERY         ║
+║        VERSIÓN 2.0 - LISTO PARA VENDER       ║
+╚══════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════
+INSTALACIÓN EN WINDOWS (para pruebas)
+═══════════════════════════════════════════════
+
+1. Instalá Node.js desde https://nodejs.org (versión 18+)
+
+2. Abrí esta carpeta y hacé SHIFT + CLICK DERECHO >
+   "Abrir ventana de PowerShell aquí"
+
+3. Ejecutá:
+   npm install
+
+4. EDITÁ config.js:
+   - GRUPO_WORKERS_ID: escribí !id en tu grupo y pegá el ID
+   - GEMINI_API_KEY o OPENAI_API_KEY
+
+5. Ejecutá iniciar.bat (doble click)
+
+6. Escaneá el QR con WhatsApp > Vincular dispositivo
+
+7. ✅ YA ESTÁ
+
+═══════════════════════════════════════════════
+INSTALACIÓN EN ORACLE CLOUD (24/7)
+═══════════════════════════════════════════════
+
+1. Creá cuenta gratis en https://signup.cloud.oracle.com
+   (pedís datos de tarjeta, no te cobran)
+
+2. Creada la cuenta, andá a "Compute" > "Instances"
+   → "Create instance"
+   - Image: Ubuntu 22.04 o 24.04 (ARM)
+   - Shape: VM.Standard.A1.Flex (gratis)
+   - SSH keys: descargá la private key
+   → "Create"
+
+3. Conectate por SSH (PuTTY o terminal):
+   ssh -i tu-clave.pem ubuntu@<IP_DEL_SERVIDOR>
+
+4. Una vez conectado, ejecutá:
+   git clone <URL_DE_TU_REPO> deliverybot
+   cd deliverybot
+   chmod +x setup-oracle.sh
+   ./setup-oracle.sh
+
+5. El script te va a pedir:
+   - ID del grupo de WhatsApp
+   - API Key de Gemini u OpenAI
+   - PIN del panel web
+
+6. Al final esperá el QR y escanealo con WhatsApp.
+
+7. ✅ El bot queda corriendo 24/7.
+   Si la instancia se reinicia, el bot arranca solo.
+
+═══════════════════════════════════════════════
+PANEL WEB
+═══════════════════════════════════════════════
+
+En Windows: http://localhost:3000
+En Oracle: http://<IP_DEL_SERVIDOR>:3000
+
+PIN por defecto: 1234 (cambiable)
+
+Ahí ves pedidos en tiempo real y podés:
+- Ver pedidos entrantes con ubicación en mapa
+- Asignar repartidor manualmente
+- Marcar "En camino" → avisa al cliente
+- Marcar "Entregado" → finaliza el pedido
+- ✅ Pagado → marca pedido como pagado
+- 🔄 Liberar → libera pedido de un repartidor
+- Generar link de pago Mercado Pago (si configurado)
+
+═══════════════════════════════════════════════
+COMANDOS EN EL GRUPO DE WORKERS
+═══════════════════════════════════════════════
+
+!id                     → Muestra el ID del grupo
+me llamo [nombre]       → Registrarse como worker
+lo tomo / #1            → Tomar un pedido pendiente
+liberar #1              → Liberar un pedido asignado
+disponible / libre      → Marcarse como disponible
+
+═══════════════════════════════════════════════
+COMANDOS DEL CLIENTE (DM)
+═══════════════════════════════════════════════
+
+hola / pedir / buenas   → Empezar un pedido
+quiero [algo]           → Pedido rápido directo
+cancelar                → Cancelar pedido activo
+modificar #1 [detalle]  → Cambiar detalle del pedido
+agregar [ítem]          → Agregar ítem al pedido
+estado                  → Ver estado de tus pedidos
+ubicación (📎 > ubicación) → Enviar dirección
+
+═══════════════════════════════════════════════
+INTELIGENCIA ARTIFICIAL
+═══════════════════════════════════════════════
+
+OPCIÓN A: GEMINI (GRATIS)
+  - API Key gratis en https://aistudio.google.com/app/apikey
+  - 20 respuestas/día en free tier
+  - 2000 respuestas/día si activás facturación (sin cargo hasta cierto límite)
+
+OPCIÓN B: OPENAI (RECOMENDADO - MUY BARATO)
+  - Crear cuenta en https://platform.openai.com
+  - Ir a API Keys, crear una key
+  - Cargar $5 USD (alcanza para ~30.000 conversaciones)
+
+SIN AI: el bot funciona igual con respuestas fijas automáticas
+
+═══════════════════════════════════════════════
+MERCADO PAGO (OPCIONAL)
+═══════════════════════════════════════════════
+
+En Windows: configurar MERCADO_PAGO_ACCESS_TOKEN en config.js
+En Oracle: agregar MERCADO_PAGO_ACCESS_TOKEN en .env
+
+═══════════════════════════════════════════════
+AUTO-CANCELACIÓN
+═══════════════════════════════════════════════
+
+- Pedidos sin repartidor: aviso a los 15 min, cancelación a los 30 min
+- Pedidos "en camino" por +60 min: alerta automática al grupo
+- El cliente puede cancelar cuando quiera escribiendo "cancelar"
+
+═══════════════════════════════════════════════
+COMANDOS ÚTILES (Oracle)
+═══════════════════════════════════════════════
+
+Ver QR de WhatsApp:     docker logs deliverybot -f
+Ver estado del bot:     docker ps
+Reiniciar el bot:       docker compose restart
+Ver logs del bot:       docker compose logs -f --tail 50
+Editar configuración:   nano .env  → luego: docker compose up -d
+Detener el bot:         docker compose down
+Actualizar el bot:      git pull && docker compose up -d --build
+
+═══════════════════════════════════════════════
+SOLUCIÓN DE PROBLEMAS
+═══════════════════════════════════════════════
+
+❌ "No se pudo conectar" → Revisá que Node.js esté instalado
+❌ QR no aparece → Borrá el volumen wwebjs_auth (docker compose down -v)
+❌ No llegan mensajes → Verificá que el número esté en WhatsApp Web
+❌ Gemini no responde → Cambiá a OPENAI o esperá 3 min (cooldown)
+❌ Error de Puppeteer → Revisá que Chromium esté instalado en el contenedor
+❌ El panel no carga desde afuera → Revisá firewall de Oracle (puerto 3000)

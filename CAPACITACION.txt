@@ -1,0 +1,71 @@
+# CAPACITACIÓN RÁPIDA
+# QUÉ DECIRLE AL CLIENTE MAÑANA
+
+## 1. PRESENTACIÓN DEL BOT
+
+"Tengo un sistema de pedidos por WhatsApp para delivery.
+El cliente te escribe por WhatsApp, pide lo que quiere, manda su ubicación,
+y automáticamente llega el pedido a un grupo de repartidores con el detalle,
+la dirección en Google Maps y tu número para contactarte.
+
+Tiene un panel web donde ves los pedidos en tiempo real y podés
+gestionarlos (en camino, entregado, pagado)."
+
+## 2. PRECIO (mixto)
+
+"La instalación y configuración completa son $40.
+Después tiene un mantenimiento de $10/mes que incluye:
+- El bot funcionando 24/7
+- Soporte técnico
+- Actualizaciones si algo cambia
+- Resolución de fallas"
+
+## 3. QUÉ NECESITÁS DEL CLIENTE
+
+Para instalarle el bot necesito:
+- Un número de WhatsApp exclusivo para el negocio (o creamos uno nuevo)
+- Crear un grupo de WhatsApp con los repartidores
+- Agregarme a ese grupo 5 min para configurar
+- El tipo de productos que vende
+
+## 4. QUÉ HACE EL BOT (funcionalidades)
+
+ENTRADA:
+- Cliente escribe "hola" o "pedir" → el bot responde
+- Cliente dice "quiero 2 hamburguesas" → bot captura
+- Cliente manda ubicación → bot registra pedido
+
+GESTIÓN:
+- El pedido aparece en el grupo de repartidores y en el panel web
+- Un repartidor dice "lo tomo" → se asigna automáticamente
+- Cliente recibe aviso: "Tu repartidor X está yendo"
+- Panel web: marcar "en camino", "entregado", "pagado"
+
+CLIENTE PUEDE:
+- Cancelar cuando quiera
+- Modificar pedido ("modificar #1 ...")
+- Agregar items ("agregar #1 ...")
+- Ver estado ("estado")
+
+SI FALLA:
+- Pedido sin repartidor: avisa a los 15 min, cancela a los 30
+- En camino por +60 min: alerta al grupo
+
+## 5. RESPUESTAS A OBJECIONES
+
+"Es caro" → Con PedidosYa perdés 20-30% por pedido.
+                    Con esto, pagás $10 fijo al mes sin importar cuántos
+                    pedidos tengas. Con 2 o 3 pedidos ya lo pagaste.
+
+"Y si se cae?" → Tengo monitoreo. Si algo falla, lo resuelvo.
+                    No vas a perder pedidos.
+
+"Puede tomar tarjeta?" → Podemos integrar Mercado Pago para links de pago.
+
+## 6. SI ACEPTA
+
+Pasos para instalar:
+1. Pedime el número de WhatsApp del negocio
+2. Creá un grupo con tus repartidores
+3. Decime el ID del grupo (escribís !id en el grupo)
+4. En 1 hora está andando

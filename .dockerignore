@@ -1,0 +1,11 @@
+node_modules
+.wwebjs_auth
+data
+database.json
+*.tmp
+.git
+.gitignore
+.gitattributes
+.env
+CAPACITACION.txt
+INSTRUCCIONES.txt

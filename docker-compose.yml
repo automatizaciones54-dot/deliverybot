@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  bot:
+    build: .
+    container_name: deliverybot
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - wwebjs_auth:/app/.wwebjs_auth
+      - data:/app/data
+    environment:
+      - GRUPO_WORKERS_ID=${GRUPO_WORKERS_ID:-120363427390428113@g.us}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WEB_PANEL_PIN=${WEB_PANEL_PIN:-1234}
+      - MERCADO_PAGO_ACCESS_TOKEN=${MERCADO_PAGO_ACCESS_TOKEN}
+      - DB_PATH=/app/data/database.json
+    stdin_open: true
+    tty: true
+
+volumes:
+  wwebjs_auth:
+  data:
