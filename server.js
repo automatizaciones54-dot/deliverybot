@@ -270,8 +270,8 @@ io.on('connection', (socket) => {
 });
 
 function start(port) {
-  server.listen(port, () => {
-    console.log(`🌐 Panel web: http://localhost:${port}`);
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`🌐 Panel web: http://0.0.0.0:${port}`);
   });
 }
 
