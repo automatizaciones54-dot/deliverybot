@@ -189,10 +189,9 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-  try {
-    try { console.clear(); } catch {}
-    qrcode.generate(qr, { small: true });
-    console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
+  try { console.clear(); } catch {}
+  qrcode.generate(qr, { small: true });
+  console.log('\n📱 Escanea el QR con WhatsApp > Vincular dispositivo');
 
     const qrPath = path.join(__dirname, 'qr.png');
     QRCode.toFile(qrPath, qr, { width: 400, margin: 2 }, (err) => {
@@ -205,9 +204,6 @@ client.on('qr', (qr) => {
         exec(`start "" "${qrPath}"`);
       }
     });
-  } catch (err) {
-    console.error('Error en QR handler:', err.message);
-  }
 });
 
 client.on('authenticated', () => console.log('✅ Autenticado'));
@@ -288,7 +284,6 @@ async function getDisplayPhone(phone) {
   try {
     const raw = phone.replace(/@.*$/, '').replace(/\D/g, '');
     if (!raw.startsWith('22') && raw.length >= 10) return raw;
-    // Intentar resolver el contacto real
     try {
       const contact = await client.getContactById(phone);
       const n = contact.number || '';
@@ -300,20 +295,17 @@ async function getDisplayPhone(phone) {
   }
 }
 
-// Helper para enviar mensaje a un cliente: usa el ID exacto como está
 function ensurePhoneFormat(phone) {
   if (!phone) return phone;
   if (phone.includes('@')) return phone;
   return phone + '@c.us';
 }
 
-// Extraer número real para wa.me (solo los dígitos, sin @ni letras)
 function phoneForLink(phone) {
   if (!phone) return '';
   return phone.replace(/@.*$/, '').replace(/\D/g, '');
 }
 
-// Enviar mensaje directo (sin typing) asegurando formato de número
 function safeSend(phone, text) {
   return client.sendMessage(ensurePhoneFormat(phone), text).catch(e => {
     console.error('Error enviando a', phone, e.message.substring(0, 80));
@@ -343,13 +335,11 @@ async function getGroupName() {
 
 // ── CLIENTE (MENSAJES DIRECTOS) ─────────────
 async function handleClientMessage(msg) {
-  // Solo procesar texto o ubicación
   if (msg.type !== 'chat' && msg.type !== 'location') return;
   if (msg.type === 'location') return handleLocation(msg, msg.from);
 
   const body = (msg.body || '').trim();
   if (!body) return;
-  // Ignorar base64 (media embed)
   if (body.length > 100 && /^[A-Za-z0-9+/=]+$/.test(body)) return;
 
   const phone = msg.from;
@@ -406,7 +396,6 @@ async function handleClientMessage(msg) {
     return msg.reply(orders.length ? '📋 Tus pedidos:\n' + orders.map(o => `#${o.id} - ${o.status}${o.workerName ? ' ('+o.workerName+')' : ''}`).join('\n') : 'No tenés pedidos.');
   }
 
-  // Guardar en histórico (si hay estado activo)
   if (state) {
     if (!state.history) state.history = [];
     state.history.push({ role: 'user', text: body, ts: Date.now() });
@@ -416,7 +405,6 @@ async function handleClientMessage(msg) {
   // ── PEDIR / HOLA (solo sin estado activo) ──
   if (!state || !state.step) {
     if (/pedir|pedido|hola|buenas|menu|ayuda|empezar|quiero|quisiera|necesito|comprar/i.test(lower)) {
-      // Quiero X directo
       const want = body.match(/^(?:quiero|quisiera|necesito|queria|me trae|me puede|me compra)\s+(.+)/i);
       if (want && want[1].length >= 3) {
         userStates.set(phone, { step: 'awaiting_location', data: { details: want[1] }, ts: Date.now() });
@@ -425,7 +413,6 @@ async function handleClientMessage(msg) {
 
       userStates.set(phone, { step: 'awaiting_order', data: {}, ts: Date.now() });
 
-      // Intentar IA para saludos
       if (isAiConfigured() && /hola|buenas|ayuda|empezar/i.test(lower)) {
         const history = (userStates.get(phone)?.history || []).slice(-4);
         const aiResp = await ai.generateResponse(body, { step: 'awaiting_order', history }).catch(() => null);
@@ -497,11 +484,9 @@ async function handleLocation(msg, phone) {
   clearState(phone);
   await replyWithTyping(msg, tmpl.orderConfirmed(orderId, state.data.details, link));
 
-  // Calcular número visible para wa.me y guardarlo en el pedido
   const displayPhone = await getDisplayPhone(phone);
   db.updateOrderDisplayPhone(orderId, displayPhone);
 
-  // Notificar al grupo de workers
   if (isGroupConfigured()) {
     await sendWithTyping(
       config.GRUPO_WORKERS_ID,
@@ -543,7 +528,6 @@ async function handleCancelRequest(msg, phone) {
     return;
   }
 
-  // Múltiples pedidos activos
   setState(phone, 'awaiting_cancel_id');
   return replyWithTyping(msg, tmpl.askCancelOrder(active));
 }
@@ -552,14 +536,12 @@ async function handleCancelRequest(msg, phone) {
 async function handleGroupMessage(msg) {
   const text = msg.body.trim();
   const lower = text.toLowerCase();
-  const senderPhone = msg.author; // quien escribe en el grupo
+  const senderPhone = msg.author;
 
-  if (!senderPhone) return; // mensajes del sistema
+  if (!senderPhone) return;
 
-  // Auto-marcar disponible al enviar cualquier mensaje
   db.markWorkerAvailable(senderPhone);
 
-  // ── COMANDO LIBERAR ──
   const liberarMatch = lower.match(/^liberar\s+(\d+)/);
   if (liberarMatch) {
     const orderId = parseInt(liberarMatch[1]);
@@ -583,27 +565,23 @@ async function handleGroupMessage(msg) {
     return;
   }
 
-  // ── DISPONIBLE / OCUPADO ──
   if (lower === 'disponible' || lower === 'libre') {
     db.markWorkerAvailable(senderPhone);
     await replyWithTyping(msg, '✅ Estás marcado como *disponible* para tomar pedidos.');
     return;
   }
 
-  // ── COMANDO !id ──
   if (lower === '!id') {
     const chat = await msg.getChat();
     await replyWithTyping(msg, `🆔 ID de este grupo:\n\`${chat.id._serialized}\`\n\nCopialo en config.js como:\n\`GRUPO_WORKERS_ID: '${chat.id._serialized}',\``);
     return;
   }
 
-  // ── COMANDO !test ──
   if (lower === '!test') {
     await replyWithTyping(msg, `✅ Bot funcionando\n📱 Conectado como: ${client.info.pushname}\n👥 Este grupo: ${(await msg.getChat()).id._serialized}\n🤖 AI: ${isAiConfigured() ? 'Sí' : 'No'}`);
     return;
   }
 
-  // ── REGISTRO ──
   const nameMatch = lower.match(/^me\s*llamo\s+(.+)/);
   if (nameMatch) {
     const name = nameMatch[1].trim();
@@ -612,8 +590,6 @@ async function handleGroupMessage(msg) {
     return;
   }
 
-  // ── ASIGNAR PEDIDO ──
-  // Patrones: "lo tomo", "yo lo tomo", "tomo el #1", "#1", solo "1"
   let orderId = null;
 
   const tomoWithId = lower.match(/^(?:yo\s+)?(?:tomo|agarro)\s+(?:el\s+)?#?(\d+)/);
@@ -636,9 +612,8 @@ async function handleGroupMessage(msg) {
     }
   }
 
-  if (!orderId) return; // mensaje irrelevante en el grupo
+  if (!orderId) return;
 
-  // Obtener nombre del worker
   const existingWorker = db.getWorker(senderPhone);
   if (!existingWorker) {
     return replyWithTyping(msg, tmpl.needRegistration());
@@ -646,7 +621,6 @@ async function handleGroupMessage(msg) {
 
   const workerName = existingWorker.name;
 
-  // Asignar
   const ok = db.assignOrder(orderId, senderPhone, workerName);
   if (!ok) {
     return replyWithTyping(msg, `❌ No se pudo asignar el pedido #${orderId}. ¿Ya está asignado o cancelado?`);
@@ -654,7 +628,6 @@ async function handleGroupMessage(msg) {
 
   await replyWithTyping(msg, tmpl.orderAssignedGroup(orderId, workerName));
 
-  // Enviar al grupo con datos de contacto del cliente
   const orderForGroup = db.getOrder(orderId);
   if (orderForGroup && isGroupConfigured()) {
     await sendWithTyping(config.GRUPO_WORKERS_ID, tmpl.orderAssignedGroupWithPhone(orderId, workerName, orderForGroup.phoneDisplay || await formatPhone(orderForGroup.phone)));
@@ -662,7 +635,6 @@ async function handleGroupMessage(msg) {
 
   web.notifyClients();
 
-  // Avisar al cliente
   const order = db.getOrder(orderId);
   if (order) {
     try {

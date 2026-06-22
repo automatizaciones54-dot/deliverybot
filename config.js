@@ -10,11 +10,10 @@ module.exports = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
 
   // ── NAVEGADOR ──
-  NAVEGADOR_PATH: process.env.NAVEGADOR_PATH || '',
-  PUPPETEER_HEADLESS: process.env.PUPPETEER_HEADLESS !== 'false',
+  NAVEGADOR_PATH: process.env.NAVEGADOR_PATH || (process.platform === 'win32' ? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' : ''),
 
   // ── PANEL WEB ──
-  WEB_PANEL_PORT: parseInt(process.env.WEB_PANEL_PORT || '3000', 10),
+  WEB_PANEL_PORT: parseInt(process.env.PORT || process.env.WEB_PANEL_PORT || '3000', 10),
   WEB_PANEL_PIN: process.env.WEB_PANEL_PIN || '1234',
 
   // ── MERCADO PAGO (opcional) ──
