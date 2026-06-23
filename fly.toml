@@ -1,13 +1,10 @@
 app = "deliverybot-curious-meadowlark-9263"
 primary_region = "gru"
-kill_signal = "SIGINT"
-kill_timeout = 5
 
 [env]
   PORT = "8080"
   DB_PATH = "/data/database.json"
-  LOCAL_AUTH_PATH = "/data/.wwebjs_auth"
-  NODE_OPTIONS = "--max-old-space-size=150"
+  AUTH_PATH = "/data/.wwebjs_auth"
 
 [[services]]
   protocol = "tcp"
@@ -21,11 +18,6 @@ kill_timeout = 5
   [[services.ports]]
     port = 443
     handlers = ["tls", "http"]
-
-  [services.concurrency]
-    type = "connections"
-    hard_limit = 25
-    soft_limit = 20
 
 [[mounts]]
   source = "deliverybot_data"
