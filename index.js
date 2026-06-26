@@ -229,6 +229,8 @@ function saveBotReply(phone, text) {
 // Rate limit control per phone number
 const sentMessages = new Map();
 let globalSentTimes = [];
+const lastMessageTime = new Map();
+const groupMessageTimes = [];
 
 async function checkRateLimit(phone) {
   const key = phone;
@@ -236,8 +238,8 @@ async function checkRateLimit(phone) {
   const windowMs = 60000;
 
   globalSentTimes = globalSentTimes.filter(t => now - t < windowMs);
-  if (globalSentTimes.length >= 30) {
-    console.log(`⏱️ Global rate limit hit: ${globalSentTimes.length}/30 per minute`);
+  if (globalSentTimes.length >= 25) {
+    console.log(`⏱️ Global rate limit hit: ${globalSentTimes.length}/25 per minute`);
     return false;
   }
 
@@ -248,28 +250,58 @@ async function checkRateLimit(phone) {
   const messages = sentMessages.get(key);
   const validMessages = messages.filter(time => now - time < windowMs);
 
-  if (validMessages.length >= 15) {
-    console.log(`⏱️ Rate limit hit for ${phone}: ${validMessages.length}/15 per minute`);
+  if (validMessages.length >= 12) {
+    console.log(`⏱️ Rate limit hit for ${phone}: ${validMessages.length}/12 per minute`);
     return false;
+  }
+
+  const lastTime = lastMessageTime.get(key) || 0;
+  if (now - lastTime < 3000) {
+    await new Promise(r => setTimeout(r, 3000 - (now - lastTime)));
   }
 
   validMessages.push(now);
   sentMessages.set(key, validMessages);
   globalSentTimes.push(now);
+  lastMessageTime.set(key, Date.now());
 
   return true;
+}
+
+function checkGroupRateLimit() {
+  const now = Date.now();
+  const windowMs = 60000;
+  const valid = groupMessageTimes.filter(t => now - t < windowMs);
+  if (valid.length >= 5) return false;
+  valid.push(now);
+  groupMessageTimes.length = 0;
+  groupMessageTimes.push(...valid);
+  return true;
+}
+
+function isWithinBusinessHours() {
+  const startHour = parseInt(process.env.BUSINESS_HOURS_START || '8');
+  const endHour = parseInt(process.env.BUSINESS_HOURS_END || '22');
+  const hour = new Date().getHours();
+  return hour >= startHour && hour < endHour;
 }
 
 async function replyWithTyping(jid, msg, text, phoneForHistory) {
   if (!sock) { console.error('replyWithTyping: sock null'); return; }
   const phone = phoneForHistory || jidToPhone(jid);
   if (phone && !(await checkRateLimit(phone))) return;
+
+  const initialDelay = Math.random() * 3000 + 2000;
+  await new Promise(r => setTimeout(r, initialDelay));
+
   try {
+    await sock.readMessages([msg.key]);
+    await new Promise(r => setTimeout(r, Math.random() * 1500 + 500));
+
     await sock.sendPresenceUpdate('composing', jid);
     await typingDelay();
     await sock.sendPresenceUpdate('paused', jid);
     await humanDelay();
-    await sock.readMessages([msg.key]);
     await sock.sendMessage(jid, { text }, { quoted: msg, ephemeralExpiration: undefined });
   } catch (e) {
     try {
@@ -283,16 +315,22 @@ async function replyWithTyping(jid, msg, text, phoneForHistory) {
 
 async function sendWithTyping(phone, text) {
   if (!sock) { console.error('sendWithTyping: sock null'); return; }
+  if (!isWithinBusinessHours()) {
+    console.log(`⏰ Fuera de horario, mensaje omitido para ${phone}`);
+    return;
+  }
   const jid = phoneToJid(phone);
   if (!jid) { console.error('sendWithTyping: jid vacio para phone:', phone); return; }
-  
-  // Rate limit check before sending
+
   const allowed = await checkRateLimit(phone);
   if (!allowed) {
     console.log(`⏱️ Rate limit para ${phone}, mensaje omitido: ${text.substring(0, 50)}...`);
     return;
   }
-  
+
+  const initialDelay = Math.random() * 3000 + 2000;
+  await new Promise(r => setTimeout(r, initialDelay));
+
   try {
     await sock.sendPresenceUpdate('composing', jid);
     await typingDelay();
@@ -667,6 +705,11 @@ async function handleGroupMessage(msg) {
   const lower = text.toLowerCase();
   const senderPhone = jidToPhone(msg.key.participant);
   if (!senderPhone) return;
+
+  if (!checkGroupRateLimit()) {
+    console.log('⏱️ Group rate limit hit, ignorando mensaje');
+    return;
+  }
 
   db.markWorkerAvailable(senderPhone);
 
