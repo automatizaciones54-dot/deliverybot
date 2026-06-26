@@ -226,7 +226,7 @@ function saveBotReply(phone, text) {
   if (st.history.length > 10) st.history = st.history.slice(-10);
 }
 
-async // Rate limit control per phone number
+// Rate limit control per phone number
 const sentMessages = new Map();
 
 async function checkRateLimit(phone) {
