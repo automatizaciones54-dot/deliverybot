@@ -93,6 +93,11 @@ body{background:#f0f2f5;padding:16px}
 #login input{width:100%;padding:10px;margin:10px 0;border:1px solid #ddd;border-radius:8px;font-size:16px;text-align:center}
 #login button{width:100%;padding:10px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer}
 #login .error{color:#dc3545;font-size:13px;margin-top:6px}
+#qr-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:1000}
+#qr-modal .qr-box{background:#fff;padding:24px;border-radius:12px;text-align:center;max-width:320px}
+#qr-modal img{width:100%;max-width:280px;border-radius:8px}
+#qr-modal h2{margin-bottom:12px;color:#1a1a2e;font-size:18px}
+#qr-modal p{color:#666;font-size:14px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -103,6 +108,13 @@ body{background:#f0f2f5;padding:16px}
     <button type="submit">Entrar</button>
     <div class="error" id="loginError"></div>
   </form>
+</div>
+<div id="qr-modal">
+  <div class="qr-box">
+    <h2>📱 Escanea el QR</h2>
+    <img id="qr-img" src="" alt="QR Code">
+    <p>Abre WhatsApp > Dispositivos vinculados > Vincular dispositivo</p>
+  </div>
 </div>
 <div id="app" style="display:none">
   <div class="header">
@@ -217,6 +229,13 @@ function conectarSocket() {
   if (socket) socket.disconnect();
   socket = io({ auth: { token } });
   socket.on('orders', d=>{orders=d;render()});
+  socket.on('qr', base64=>{
+    document.getElementById('qr-img').src='data:image/png;base64,'+base64;
+    document.getElementById('qr-modal').style.display='flex';
+  });
+  socket.on('connected', ()=>{
+    document.getElementById('qr-modal').style.display='none';
+  });
   socket.on('connect_error', ()=>{setTimeout(conectarSocket, 3000)});
 }
 </script>

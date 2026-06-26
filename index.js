@@ -998,6 +998,7 @@ async function initWhatsApp() {
       console.log('✅ Conectado a WhatsApp!');
       botNumber = jidToPhone(sock.user?.id || '');
       reconnectAttempts = 0;
+      web.emit('connected', true);
 
       console.log(`📱 Número: ${botNumber}`);
       console.log(`👥 Grupo workers configurado: ${isGroupConfigured() ? 'Sí' : 'NO - configurá GRUPO_WORKERS_ID'}`);
