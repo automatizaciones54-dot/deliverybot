@@ -1,4 +1,4 @@
-const { makeWASocket, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, Browsers, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
@@ -17,6 +17,7 @@ if (config.OPENAI_API_KEY) {
 
 let sock = null;
 let botNumber = null;
+let reconnectAttempts = 0;
 const contactStore = new Map();
 
 // ── AYUDANTES ─────────────────────────────────
@@ -101,13 +102,12 @@ function typingDelay() {
 }
 
 // ── HELPERS DE AUDIO ───────────────────────────
-async function downloadAudio(url) {
+async function downloadAudio(msg) {
   try {
-    const fetch = require('node-fetch');
-    const response = await fetch(url);
-    if (!response.ok) return '';
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const buffer = await downloadMediaMessage(msg, 'buffer', {}, {
+      reuploadRequest: sock.updateMediaMessage
+    });
+    return buffer;
   } catch (err) {
     console.error('Error descargando audio:', err.message);
     return '';
@@ -144,16 +144,16 @@ async function processAudioTranscription(jid, audioMsg, phone, text, state) {
 // ── MANEJO DE MENSAJES DE VOZ ───────────────────
 async function handleVoiceMessage(jid, phone, audioMsg, state) {
   try {
-    const isAiConfigured = config.AI_PROVIDER === 'gemini' && config.GEMINI_API_KEY ||
-                           config.AI_PROVIDER === 'openai' && config.OPENAI_API_KEY;
-    
-    if (!isAiConfigured) {
+    const aiReady = config.AI_PROVIDER === 'gemini' && config.GEMINI_API_KEY ||
+                    config.AI_PROVIDER === 'openai' && config.OPENAI_API_KEY;
+
+    if (!aiReady) {
       return await replyWithTyping(jid, audioMsg, 'Lo siento, el servicio de voz no está disponible en este momento.');
     }
     
     if (config.AI_PROVIDER === 'openai' && openaiInstance) {
       try {
-        const audioBuffer = await downloadAudio(audioMsg.message?.audioMessage?.url);
+        const audioBuffer = await downloadAudio(audioMsg);
         if (!audioBuffer || audioBuffer.length === 0) {
           throw new Error('No se pudo descargar el audio');
         }
@@ -172,7 +172,7 @@ async function handleVoiceMessage(jid, phone, audioMsg, state) {
     
     if (config.AI_PROVIDER === 'gemini' && config.GEMINI_API_KEY) {
       try {
-        const audioBase64 = await downloadAudio(audioMsg.message?.audioMessage?.url);
+        const audioBase64 = await downloadAudio(audioMsg);
         if (!audioBase64 || audioBase64.length === 0) {
           throw new Error('No se pudo descargar el audio');
         }
@@ -228,27 +228,35 @@ function saveBotReply(phone, text) {
 
 // Rate limit control per phone number
 const sentMessages = new Map();
+let globalSentTimes = [];
 
 async function checkRateLimit(phone) {
   const key = phone;
   const now = Date.now();
-  const windowMs = 60000; // 1 minute
-  
+  const windowMs = 60000;
+
+  globalSentTimes = globalSentTimes.filter(t => now - t < windowMs);
+  if (globalSentTimes.length >= 30) {
+    console.log(`⏱️ Global rate limit hit: ${globalSentTimes.length}/30 per minute`);
+    return false;
+  }
+
   if (!sentMessages.has(key)) {
     sentMessages.set(key, []);
   }
-  
+
   const messages = sentMessages.get(key);
   const validMessages = messages.filter(time => now - time < windowMs);
-  
-  if (validMessages.length >= 20) {
-    console.log(`⏱️ Rate limit hit for ${phone}: ${validMessages.length}/20 per minute`);
+
+  if (validMessages.length >= 15) {
+    console.log(`⏱️ Rate limit hit for ${phone}: ${validMessages.length}/15 per minute`);
     return false;
   }
-  
+
   validMessages.push(now);
   sentMessages.set(key, validMessages);
-  
+  globalSentTimes.push(now);
+
   return true;
 }
 
@@ -426,16 +434,6 @@ async function getWorkerDisplayName(phone) {
   const worker = db.getWorker(phone);
   if (worker && worker.name) return worker.name;
   return jidToPhone(phone);
-}
-
-async function getGroupName(groupJid) {
-  if (!sock || !groupJid || !isGroupJid(groupJid)) return null;
-  try {
-    const meta = await sock.groupMetadata(groupJid);
-    return meta.subject || null;
-  } catch {
-    return null;
-  }
 }
 
 // ── MANEJAR CLIENTE ───────────────────────────
@@ -876,14 +874,15 @@ async function processMessage(msg) {
     }
 
     const body = getMsgText(msg);
-    if (!body) return;
 
-    await handleClientMessage(msg);
-
-    if (msg.message?.audioMessage && !body) {
+    if (msg.message?.audioMessage) {
       const phone = jidToPhone(jid);
       return await handleVoiceMessage(jid, phone, msg, userStates.get(phone));
     }
+
+    if (!body) return;
+
+    await handleClientMessage(msg);
   } catch (err) {
     console.error('❌ Error procesando mensaje:', err.message?.substring(0, 200));
     console.error(err.stack?.substring(0, 300));
@@ -976,8 +975,6 @@ async function initWhatsApp() {
     contactStore.set(lid, { ...contactStore.get(lid) || {}, id: lid, phoneNumber: pn, pn });
   });
 
-  let reconnectAttempts = 0;
-
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       try {
@@ -1000,6 +997,7 @@ async function initWhatsApp() {
     if (connection === 'open') {
       console.log('✅ Conectado a WhatsApp!');
       botNumber = jidToPhone(sock.user?.id || '');
+      reconnectAttempts = 0;
 
       console.log(`📱 Número: ${botNumber}`);
       console.log(`👥 Grupo workers configurado: ${isGroupConfigured() ? 'Sí' : 'NO - configurá GRUPO_WORKERS_ID'}`);
@@ -1026,7 +1024,7 @@ async function initWhatsApp() {
         const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), 300000);
         reconnectAttempts++;
         console.log(`❌ Desconectado, reconectando en ${Math.round(delay/1000)}s (intento ${reconnectAttempts})...`);
-        setTimeout(() => { reconnectAttempts = 0; initWhatsApp(); }, delay);
+        setTimeout(initWhatsApp, delay);
       } else {
         reconnectAttempts = 0;
         console.log('❌ Sesión cerrada. Borrando sesión y generando nuevo QR...');
@@ -1045,8 +1043,9 @@ async function initWhatsApp() {
   // Limpieza de rate limit cache cada 5 min
   setInterval(() => {
     const now = Date.now();
+    globalSentTimes = globalSentTimes.filter(t => now - t < 60000);
     for (const [key, times] of sentMessages.entries()) {
-      const valid = times.filter(t => now - t < 3600000);
+      const valid = times.filter(t => now - t < 60000);
       if (valid.length) sentMessages.set(key, valid);
       else sentMessages.delete(key);
     }

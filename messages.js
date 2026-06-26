@@ -80,8 +80,7 @@ Escribí "lo tomo" para asignarte este pedido.`,
   ratingReceived: (orderId, rating) => `⭐ *Calificación #${orderId}:* ${'⭐'.repeat(Math.min(rating, 5))} (${rating}/10)
 
 Gracias por tu opinión 😊`,
-};
 
-// ── MANDAR AUDIO ─────────────────────────────
   askVoiceOrder: () =>
-    `🎤 Para hacer tu pedido en audio, graba un mensaje y envíalo aquí. El bot lo transcribirá automáticamente y te preguntará por tu ubicación para continuar.`;
+    `🎤 Para hacer tu pedido en audio, graba un mensaje y envíalo aquí. El bot lo transcribirá automáticamente y te preguntará por tu ubicación para continuar.`,
+};

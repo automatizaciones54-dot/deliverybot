@@ -34,6 +34,28 @@ function notifyClients() {
 
 let validToken = loadToken();
 
+const loginAttempts = new Map();
+
+app.post('/api/login', (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const attempts = loginAttempts.get(ip) || [];
+  const recent = attempts.filter(t => now - t < 300000);
+  if (recent.length >= 5) {
+    return res.status(429).json({ ok: false, error: 'Demasiados intentos. Esperá 5 minutos.' });
+  }
+  recent.push(now);
+  loginAttempts.set(ip, recent);
+
+  const ok = req.body.pin === config.WEB_PANEL_PIN;
+  if (ok) {
+    validToken = crypto.randomBytes(16).toString('hex');
+    saveToken(validToken);
+    loginAttempts.delete(ip);
+  }
+  res.json({ ok, token: ok ? validToken : null });
+});
+
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -211,15 +233,6 @@ app.get('/', (req, res) => {
   res.send(DASHBOARD_HTML);
 });
 
-app.post('/api/login', (req, res) => {
-  const ok = req.body.pin === config.WEB_PANEL_PIN;
-  if (ok) {
-    validToken = crypto.randomBytes(16).toString('hex');
-    saveToken(validToken);
-  }
-  res.json({ ok, token: ok ? validToken : null });
-});
-
 app.get('/api/orders', requireAuth, (req, res) => {
   res.json(db.getAllOrders());
 });
@@ -332,4 +345,8 @@ function start(port) {
   });
 }
 
-module.exports = { start, notifyClients, onEvent };
+function emitSocket(event, data) {
+  io.emit(event, data);
+}
+
+module.exports = { start, notifyClients, onEvent, emit: emitSocket };
