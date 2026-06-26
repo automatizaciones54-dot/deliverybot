@@ -1,6 +1,6 @@
 module.exports = {
   // ── GRUPO DE WHATSAPP ──
-  GRUPO_WORKERS_ID: process.env.GRUPO_WORKERS_ID || '120363427390428113@g.us',
+  GRUPO_WORKERS_ID: process.env.GRUPO_WORKERS_ID || '',
 
   // ── INTELIGENCIA ARTIFICIAL ──
   AI_PROVIDER: process.env.AI_PROVIDER || 'gemini',
@@ -9,7 +9,7 @@ module.exports = {
 
   // ── PANEL WEB ──
   WEB_PANEL_PORT: parseInt(process.env.PORT || process.env.WEB_PANEL_PORT || '3000', 10),
-  WEB_PANEL_PIN: process.env.WEB_PANEL_PIN || '1234',
+  WEB_PANEL_PIN: process.env.WEB_PANEL_PIN || '',
 
   // ── MERCADO PAGO (opcional) ──
   MERCADO_PAGO_ACCESS_TOKEN: process.env.MERCADO_PAGO_ACCESS_TOKEN || '',

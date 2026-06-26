@@ -1,22 +1,4 @@
 module.exports = {
-  // ── MENÚ PRINCIPAL ──────────────────────────
-  welcome: () =>
-    `👋 *¡Hola!* Bienvenido al bot de delivery.
-
-Escribí *"pedir"* para hacer un pedido nuevo.
-Escribí *"cancelar"* para cancelar un pedido.
-Escribí *"estado"* para saber cómo va tu pedido.`,
-
-  invalidOption: () =>
-    `😅 No entendí. Escribí *"pedir"*, *"cancelar"* o *"estado"*.`,
-
-  // ── FLUJO DE PEDIDO ────────────────────────
-  askOrder: () =>
-    `😊 ¡Perfecto! Decime *qué querés pedir*.
-
-Por ejemplo: "2 hamburguesas con papas y coca"
-Si tenés algún número de referencia del pedido, incluilo también.`,
-
   askLocation: (details) =>
     `😊 Anoté: *"${details}"*
 
@@ -29,12 +11,15 @@ En WhatsApp: tocá el clip 📎 > Ubicación > Enviar ubicación actual`,
 📋 *Detalle:* ${details}
 📍 *Ubicación:* ${link}
 
-En breve te asignamos un repartidor. Te aviso cuando haya novedades.`,
+En breve te asignamos un repartidor. Te aviso cuando haya novedades.
+
+💡 *Tip:* Podés escribir *"agregar [algo]"* para añadir más cosas al pedido.`,
 
   // ── ASIGNACIÓN ─────────────────────────────
-  orderAssigned: (orderId, workerName) =>
+  orderAssigned: (orderId, workerName, contactLine) =>
     `🛵 *Pedido #${orderId} asignado!*
 Tu repartidor *${workerName}* está yendo a buscarte.
+${contactLine}
 
 Te avisamos cuando llegue. Gracias por tu paciencia 😊`,
 
@@ -58,49 +43,24 @@ Decime el *número* del que querés cancelar.`,
 
 Si querés hacer otro pedido, escribí *"pedir"*. 😊`,
 
-  cancelError: (status) =>
-    `No podés cancelar un pedido en estado "${status}". Contactate con tu repartidor.`,
-
-  // ── ESTADO ─────────────────────────────────
-  statusInfo: (orders) => {
-    if (orders.length === 0)
-      return 'No tenés pedidos. Escribí *"pedir"* para hacer uno nuevo. 😊';
-    return (
-      '📋 *Tus pedidos:*\n\n' +
-      orders
-        .map((o) => {
-          const icon =
-            o.status === 'pendiente'
-              ? '⏳'
-              : o.status === 'asignado'
-                ? '🛵'
-                : o.status === 'cancelado'
-                  ? '❌'
-                  : '✅';
-          return `${icon} *Pedido #${o.id}* - ${o.status}\n   ${o.details.substring(0, 50)}${o.details.length > 50 ? '...' : ''}${o.workerName ? `\n   Repartidor: ${o.workerName}` : ''}`;
-        })
-        .join('\n\n')
-    );
-  },
-
   // ── GRUPO DE WORKERS ───────────────────────
-  newOrderGroup: (orderId, details, link, phone) =>
+  newOrderGroup: (orderId, details, link, phone, contactLink) =>
     `🆕 *NUEVO PEDIDO #${orderId}*
 
 📋 *Detalle:* ${details}
 📍 *Ubicación:* ${link}
 📱 *Cliente:* ${phone}
-💬 *Contactar:* https://wa.me/${phone}
+${contactLink}
 
 Escribí "lo tomo" para asignarte este pedido.`,
 
   orderAssignedGroup: (orderId, workerName) =>
     `✅ *Pedido #${orderId} asignado a ${workerName}*`,
 
-  orderAssignedGroupWithPhone: (orderId, workerName, phone) =>
+  orderAssignedGroupWithPhone: (orderId, workerName, phone, contactLink) =>
     `✅ *Pedido #${orderId} asignado a ${workerName}*
 
-💬 *Contactar cliente:* https://wa.me/${phone}`,
+💬 *Contactar cliente:* ${contactLink}`,
 
   orderCancelledGroup: (orderId, workerName) =>
     `❌ *PEDIDO #${orderId} CANCELADO por el cliente*${workerName ? `\n${workerName} quedó libre ✅` : ''}`,
@@ -115,4 +75,13 @@ Escribí "lo tomo" para asignarte este pedido.`,
     `No estás registrado como worker. Escribí *"me llamo [tu nombre]"* para registrarte.`,
 
   registered: (name) => `✅ Registrado como *${name}*! Ya podés tomar pedidos.`,
+
+  // ── CALIFICACIÓN ────────────────────────────
+  ratingReceived: (orderId, rating) => `⭐ *Calificación #${orderId}:* ${'⭐'.repeat(Math.min(rating, 5))} (${rating}/10)
+
+Gracias por tu opinión 😊`,
 };
+
+// ── MANDAR AUDIO ─────────────────────────────
+  askVoiceOrder: () =>
+    `🎤 Para hacer tu pedido en audio, graba un mensaje y envíalo aquí. El bot lo transcribirá automáticamente y te preguntará por tu ubicación para continuar.`;

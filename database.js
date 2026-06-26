@@ -26,11 +26,11 @@ function saveAtomic(data) {
   fs.renameSync(tmp, DB_PATH);
 }
 
-function createOrder({ phone, details, link, lat, lng }) {
+function createOrder({ phone, jid, details, link, lat, lng, pushName }) {
   const data = load();
   const order = {
     id: data.nextOrderId++,
-    phone, details, link, lat, lng,
+    phone, jid: jid || phone, pushName: pushName || '', details, link, lat, lng,
     status: 'pendiente',
     workerName: null, workerPhone: null,
     createdAt: new Date().toISOString(),
@@ -83,7 +83,7 @@ function releaseOrder(orderId, workerPhone) {
 function updateOrderDetails(orderId, phone, newDetails) {
   const data = load();
   const order = data.orders.find((o) => o.id === orderId && o.phone === phone);
-  if (!order || order.status !== 'pendiente') return false;
+  if (!order) return false;
   order.details = newDetails;
   saveAtomic(data);
   return true;
@@ -113,13 +113,14 @@ function getPendingOrders() {
   return data.orders.filter((o) => o.status === 'pendiente');
 }
 
-function assignOrder(orderId, workerPhone, workerName) {
+function assignOrder(orderId, workerPhone, workerName, workerJid) {
   const data = load();
   const order = data.orders.find((o) => o.id === orderId);
   if (!order || order.status !== 'pendiente') return false;
   order.status = 'asignado';
   order.workerName = workerName;
   order.workerPhone = workerPhone;
+  order.workerJid = workerJid || workerPhone;
   let worker = data.workers.find((w) => w.phone === workerPhone);
   if (!worker) {
     data.workers.push({ phone: workerPhone, name: workerName, available: false, currentOrderId: orderId });
@@ -176,7 +177,7 @@ function markAsEnCamino(orderId) {
 function markAsEntregado(orderId) {
   const data = load();
   const order = data.orders.find((o) => o.id === orderId);
-  if (!order || order.status !== 'en_camino') return false;
+  if (!order || (order.status !== 'en_camino' && order.status !== 'asignado')) return false;
   order.status = 'entregado';
   if (order.workerPhone) {
     const worker = data.workers.find((w) => w.phone === order.workerPhone);
@@ -207,7 +208,7 @@ function markPaymentConfirmed(orderId) {
 function releaseOrderAdmin(orderId) {
   const data = load();
   const order = data.orders.find((o) => o.id === orderId);
-  if (!order || order.status !== 'asignado') return false;
+  if (!order || (order.status !== 'asignado' && order.status !== 'en_camino')) return false;
   order.status = 'pendiente';
   if (order.workerPhone) {
     const worker = data.workers.find((w) => w.phone === order.workerPhone);
@@ -238,6 +239,15 @@ function updateOrderDisplayPhone(orderId, phone) {
   return true;
 }
 
+function saveRating(orderId, rating) {
+  const data = load();
+  const order = data.orders.find((o) => o.id === orderId);
+  if (!order) return false;
+  order.rating = parseInt(rating);
+  saveAtomic(data);
+  return true;
+}
+
 module.exports = {
   load, createOrder, getOrder, getClientOrders, getActiveClientOrders,
   getPendingOrders, getAssignedOrders, getEnCaminoOrders, releaseOrder,
@@ -245,5 +255,5 @@ module.exports = {
   assignOrder, cancelOrder, getWorker, registerWorker, getWorkerCount,
   getAvailableWorkerCount, getAllOrders, markAsEnCamino, markAsEntregado,
   updateOrderPayment, markPaymentConfirmed, releaseOrderAdmin,
-  markOrderNotified, updateOrderDisplayPhone,
+  markOrderNotified, updateOrderDisplayPhone, saveRating,
 };

@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const config = require('./config');
 const db = require('./database');
 const { MercadoPagoConfig, Preference } = require('mercadopago');
@@ -87,17 +88,31 @@ body{background:#f0f2f5;padding:16px}
 </div>
 <script>
 const PIN = '';
+let token = null;
 let filtroActual = 'todas';
 let orders = [];
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function login(f) {
   const pin = f.querySelector('#pin').value;
   fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})})
     .then(r=>r.json()).then(d=>{
-      if(d.ok){document.getElementById('login').style.display='none';document.getElementById('app').style.display='block'}
+      if(d.ok){token=d.token;conectarSocket();document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';fetchOrders()}
       else document.getElementById('loginError').textContent='PIN incorrecto'
     });
   return false;
+}
+
+function api(path, opts) {
+  return fetch(path, { ...opts, headers: { ...opts?.headers, 'Content-Type':'application/json','X-Token': token } });
+}
+
+function apiPost(path) {
+  return api(path, {method:'POST'}).then(r=>r.json());
 }
 
 function filtrar(f) {
@@ -121,9 +136,9 @@ function render() {
     const cliente = (o.phone||'').replace(/@.*$/,'');
     return \`<div class="order">
       <h3>#\${o.id} <span class="badge \${o.status}">\${estadoTexto(o.status)}</span>\${o.pagado?' <span class="badge entregado">✅ Pagado</span>':''}</h3>
-      <div class="detalle">\${o.details}</div>
-      <div class="meta">📱 \${cliente} | 🕐 \${fecha}\${o.workerName?' | 👤 '+o.workerName:''}</div>
-      <div class="meta">📍 <a href="\${o.link}" target="_blank">Ver mapa</a></div>
+      <div class="detalle">\${escapeHtml(o.details)}</div>
+      <div class="meta">📱 \${escapeHtml(cliente)} | 🕐 \${escapeHtml(fecha)}\${o.workerName?' | 👤 '+escapeHtml(o.workerName):''}</div>
+      <div class="meta">📍 <a href="\${escapeHtml(o.link)}" target="_blank">Ver mapa</a></div>
       \${accionesHtml(o)}</div>\`;
   }).join('');
 }
@@ -144,29 +159,33 @@ function accionesHtml(o) {
 }
 
 function marcarCamino(id) {
-  fetch('/api/order/'+id+'/camino',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.ok)fetchOrders()});
+  apiPost('/api/order/'+id+'/camino').then(d=>{if(d.ok)fetchOrders()});
 }
 function marcarEntregado(id) {
-  fetch('/api/order/'+id+'/entregar',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.ok)fetchOrders()});
+  apiPost('/api/order/'+id+'/entregar').then(d=>{if(d.ok)fetchOrders()});
 }
 function liberar(id) {
-  fetch('/api/order/'+id+'/liberar',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.ok)fetchOrders()});
+  apiPost('/api/order/'+id+'/liberar').then(d=>{if(d.ok)fetchOrders()});
 }
 function confirmarPago(id) {
-  fetch('/api/order/'+id+'/pago/confirmar',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.ok)fetchOrders()});
+  apiPost('/api/order/'+id+'/pago/confirmar').then(d=>{if(d.ok)fetchOrders()});
 }
 function generarPago(id) {
-  fetch('/api/order/'+id+'/pago',{method:'POST'}).then(r=>r.json()).then(d=>{
+  apiPost('/api/order/'+id+'/pago').then(d=>{
     if(d.ok&&d.link) navigator.clipboard.writeText(d.link).then(()=>alert('✅ Link copiado al portapapeles'));
     fetchOrders();
   });
 }
 function fetchOrders() {
-  fetch('/api/orders').then(r=>r.json()).then(d=>{orders=d;render()});
+  api('/api/orders').then(r=>r.json()).then(d=>{orders=d;render()});
 }
-const socket = io();
-socket.on('orders', d=>{orders=d;render()});
-setTimeout(fetchOrders, 500);
+let socket = null;
+function conectarSocket() {
+  if (socket) socket.disconnect();
+  socket = io({ auth: { token } });
+  socket.on('orders', d=>{orders=d;render()});
+  socket.on('connect_error', ()=>{setTimeout(conectarSocket, 3000)});
+}
 </script>
 </body>
 </html>`;
@@ -182,26 +201,30 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  res.json({ ok: req.body.pin === config.WEB_PANEL_PIN });
+  const ok = req.body.pin === config.WEB_PANEL_PIN;
+  if (ok) {
+    validToken = crypto.randomBytes(16).toString('hex');
+  }
+  res.json({ ok, token: ok ? validToken : null });
 });
 
-app.get('/api/orders', (req, res) => {
+app.get('/api/orders', requireAuth, (req, res) => {
   res.json(db.getAllOrders());
 });
 
-app.post('/api/order/:id/camino', (req, res) => {
+app.post('/api/order/:id/camino', requireAuth, async (req, res) => {
   const ok = db.markAsEnCamino(parseInt(req.params.id));
-  if (ok) { notifyClients(); emitEvent('camino', parseInt(req.params.id)); }
+  if (ok) { notifyClients(); await emitEvent('camino', parseInt(req.params.id)); }
   res.json({ ok });
 });
 
-app.post('/api/order/:id/entregar', (req, res) => {
+app.post('/api/order/:id/entregar', requireAuth, async (req, res) => {
   const ok = db.markAsEntregado(parseInt(req.params.id));
-  if (ok) { notifyClients(); emitEvent('entregado', parseInt(req.params.id)); }
+  if (ok) { notifyClients(); await emitEvent('entregado', parseInt(req.params.id)); }
   res.json({ ok });
 });
 
-app.post('/api/order/:id/pago', async (req, res) => {
+app.post('/api/order/:id/pago', requireAuth, async (req, res) => {
   const orderId = parseInt(req.params.id);
   const order = db.getOrder(orderId);
   if (!order) return res.json({ ok: false });
@@ -210,6 +233,7 @@ app.post('/api/order/:id/pago', async (req, res) => {
 
   if (!mpClient) return res.json({ ok: false, error: 'Mercado Pago no configurado' });
 
+  const publicUrl = process.env.PUBLIC_URL || `http://localhost:${config.WEB_PANEL_PORT}`;
   try {
     const preference = new Preference(mpClient);
     const result = await preference.create({
@@ -223,9 +247,9 @@ app.post('/api/order/:id/pago', async (req, res) => {
         }],
         payer: { email: 'comprador@email.com' },
         back_urls: {
-          success: 'http://localhost:' + config.WEB_PANEL_PORT + '/',
-          failure: 'http://localhost:' + config.WEB_PANEL_PORT + '/',
-          pending: 'http://localhost:' + config.WEB_PANEL_PORT + '/',
+          success: publicUrl + '/',
+          failure: publicUrl + '/',
+          pending: publicUrl + '/',
         },
         auto_return: 'approved',
       }
@@ -243,17 +267,31 @@ app.post('/api/order/:id/pago', async (req, res) => {
   }
 });
 
-app.post('/api/order/:id/pago/confirmar', (req, res) => {
+app.post('/api/order/:id/pago/confirmar', requireAuth, (req, res) => {
   const ok = db.markPaymentConfirmed(parseInt(req.params.id));
   if (ok) notifyClients();
   res.json({ ok });
 });
 
-app.post('/api/order/:id/liberar', (req, res) => {
+app.post('/api/order/:id/liberar', requireAuth, (req, res) => {
   const ok = db.releaseOrderAdmin(parseInt(req.params.id));
   if (ok) notifyClients();
   res.json({ ok });
 });
+
+// ── AUTENTICACIÓN SIMPLE ────────────────────
+let validToken = null;
+
+function requireAuth(req, res, next) {
+  const token = req.headers['x-token'] || req.query.token;
+  if (!validToken || token !== validToken) {
+    return res.status(401).json({ ok: false, error: 'No autorizado' });
+  }
+  next();
+}
+
+// El endpoint /api/login NO requiere auth (es donde se obtiene el token)
+// Las rutas / y /qr.png tampoco
 
 let eventCallback = null;
 
@@ -265,7 +303,15 @@ function emitEvent(type, orderId) {
   if (eventCallback) eventCallback(type, orderId);
 }
 
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  if (!validToken || token !== validToken) return next(new Error('No autorizado'));
+  next();
+});
+
 io.on('connection', (socket) => {
+  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  if (!validToken || token !== validToken) { socket.disconnect(); return; }
   socket.emit('orders', db.getAllOrders());
 });
 
