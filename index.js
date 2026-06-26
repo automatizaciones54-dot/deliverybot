@@ -202,6 +202,14 @@ async function safeSend(phone, text) {
   }
 }
 
+function saveBotReply(phone, text) {
+  const st = userStates.get(phone);
+  if (!st) return;
+  if (!st.history) st.history = [];
+  st.history.push({ role: 'assistant', text, ts: Date.now() });
+  if (st.history.length > 10) st.history = st.history.slice(-10);
+}
+
 async function replyWithTyping(jid, msg, text, phoneForHistory) {
   if (!sock) { console.error('replyWithTyping: sock null'); return; }
   try {
@@ -437,14 +445,6 @@ async function handleClientMessage(msg) {
     if (!state.history) state.history = [];
     state.history.push({ role: 'user', text: body, ts: Date.now() });
     if (state.history.length > 10) state.history = state.history.slice(-10);
-  }
-
-  function saveBotReply(phone, text) {
-    const st = userStates.get(phone);
-    if (!st) return;
-    if (!st.history) st.history = [];
-    st.history.push({ role: 'assistant', text, ts: Date.now() });
-    if (st.history.length > 10) st.history = st.history.slice(-10);
   }
 
    // ── PEDIR / HOLA ──
