@@ -26,6 +26,12 @@ function saveAtomic(data) {
   fs.renameSync(tmp, DB_PATH);
 }
 
+function reset() {
+  try { fs.rmSync(DB_PATH); } catch {}
+  try { fs.rmSync(DB_PATH + '.tmp'); } catch {}
+  saveAtomic({ orders: [], workers: [], nextOrderId: 1 });
+}
+
 function createOrder({ phone, jid, details, link, lat, lng, pushName }) {
   const data = load();
   const order = {
@@ -255,5 +261,5 @@ module.exports = {
   assignOrder, cancelOrder, getWorker, registerWorker, getWorkerCount,
   getAvailableWorkerCount, getAllOrders, markAsEnCamino, markAsEntregado,
   updateOrderPayment, markPaymentConfirmed, releaseOrderAdmin,
-  markOrderNotified, updateOrderDisplayPhone, saveRating,
+  markOrderNotified, updateOrderDisplayPhone, saveRating, reset,
 };

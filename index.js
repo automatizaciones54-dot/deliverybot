@@ -1,4 +1,4 @@
-const { makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
@@ -7,6 +7,7 @@ const db = require('./database');
 const tmpl = require('./messages');
 const ai = require('./ai');
 const web = require('./server');
+const { useSingleFileAuthState } = require('./auth');
 
 let openaiInstance = null;
 if (config.OPENAI_API_KEY) {
@@ -853,9 +854,27 @@ function startWeb() {
 
 async function initWhatsApp() {
   const authPath = config.AUTH_PATH;
-  fs.mkdirSync(authPath, { recursive: true });
 
-  const { state, saveCreds } = await useMultiFileAuthState(authPath);
+  // Clean up old multi-file auth for fresh start
+  try {
+    if (fs.existsSync(authPath)) {
+      const entries = fs.readdirSync(authPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name !== 'creds.json') {
+          fs.rmSync(path.join(authPath, entry.name));
+        }
+      }
+    }
+  } catch { }
+  // Reset all data if FRESH_START is set (for new client setup)
+  if (process.env.FRESH_START === 'true') {
+    console.log('🧹 FRESH_START detectado, limpiando todos los datos...');
+    try { fs.rmSync(authPath, { recursive: true, force: true }); } catch {}
+    db.reset();
+    console.log('✅ Datos limpiados para nuevo cliente');
+  }
+
+  const { state, saveCreds } = useSingleFileAuthState(authPath);
 
   sock = makeWASocket({
     auth: state,

@@ -1,0 +1,136 @@
+# MANUSCRITO DEMO - EDITORIAL GES
+# Texto escolar de muestra para demostración comercial
+# Incluye errores típicos de manuscritos reales
+
+BIOLOGIA - Unidad 1: La celula
+
+La celula es la unidad basica de la vida. Todos los seres vivos estan formados por celulas.
+Existen dos tipos principales: las celulas procariotas y las celulas eucariotas.
+
+Las celulas eucariotas tienen un nucleo definido que contiene el material genetico (ADN).
+Dentro del nucleo se encuentra el nucleolo, responsable de la síntesis de ribosomas.
+En el citoplasma se encuentran los organulos como las mitocondrias (encargadas de la
+respiracion celular), los ribosomas (sintesis de proteinas), el reticulo endoplasmatico
+y el aparato de Golgi.
+
+Las celulas vegetales ademas tienen cloroplastos, donde ocurre la fotosintesis, y una
+pared celular que les da rigidez. La membrana celular regula el transporte de sustancias
+entre el interior y el exterior de la celula.
+
+Preguntas de autoevaluacion:
+1. Que es la celula?
+2. Cuales son las diferencias entre una celula procariota y una eucariota?
+3. Explique la funcion de las mitocondrias y los cloroplastos.
+
+FISICA - Unidad 3: Movimiento y fuerzas
+
+La velocidad es una magnitud vectorial que indica el cambio de posicion en el tiempo.
+Se calcula como: v = d / t, donde v es la velocidad, d es la distancia recorrida y
+t es el tiempo transcurrido.
+
+La aceleracion mide el cambio de velocidad en funcion del tiempo.
+Un cuerpo acelera cuando su velocidad aumenta, desacelera cuando disminuye,
+y mantiene velocidad constante cuando no hay aceleracion.
+
+Segun la segunda ley de Newton, la fuerza se define como:
+F = m x a (fuerza = masa por aceleracion)
+
+Si un objeto de 50kg se desplaza a una velocidad de 10m/s, su energia cinetica
+seria: Ec = 1/2 x m x v2 = 1/2 x 50kg x (10m/s)2 = 2500 J
+
+Problemas:
+a) Calcule la fuerza necesaria para acelerar un objeto de 25kg a razon de 5m/s2
+b) Un auto viaja a 60km/h. Exprese esta velocidad en m/s.
+
+MATEMATICAS - Unidad 5: Geometria
+
+La geometria estudia las propiedades de las figuras en el plano y el espacio.
+El teorema de Pitagoras establece que en un triangulo rectangulo, el cuadrado
+de la hipotenusa es igual a la suma de los cuadrados de los catetos:
+
+a2 + b2 = c2
+
+donde c es la hipotenusa y a, b son los catetos.
+
+Ejemplo: Si un triangulo tiene catetos de 3cm y 4cm, la hipotenusa mide 5cm.
+Comprobacion: 32 + 42 = 9 + 16 = 25 = 52
+
+El algebra es una rama de la matematica que utiliza simbolos para representar
+numeros y operaciones. Las ecuaciones de primer grado tienen la forma ax + b = 0.
+El calculo diferencial estudia las derivadas, mientras que el calculo integral
+estudia las integrales.
+
+QUIMICA - Unidad 2: Los atomos y la tabla periodica
+
+El atomo es la unidad fundamental de la materia. Esta formado por un nucleo
+que contiene protones (carga positiva) y neutrones (carga neutra), y una nube
+de electrones (carga negativa) que orbitan alrededor del nucleo.
+
+El numero atomico (Z) indica la cantidad de protones en el nucleo.
+La masa atomica (A) es la suma de protones y neutrones.
+Los isotopos son atomos del mismo elemento con distinto numero de neutrones.
+
+La tabla periodica organiza los elementos quimicos segun su numero atomico.
+Los elementos se clasifican en metales, no metales y metaloides.
+Los enlaces quimicos pueden ser ionicos (transferencia de electrones) o
+covalentes (comparticion de electrones).
+
+Ejercicios:
+- Escriba la configuracion electronica del oxigeno (Z = 8)
+- Que diferencia hay entre un atomo y una molecula?
+
+LENGUAJE - Unidad 1: La comunicacion
+
+La comunicacion es el proceso mediante el cual los seres humanos intercambiamos
+informacion. Los elementos de la comunicacion son: el emisor, el receptor,
+el mensaje, el canal, el codigo y el contexto.
+
+La sintaxis estudia la estructura de las oraciones. Una oracion esta compuesta
+por un sujeto y un predicado. El sujeto es la persona, animal o cosa de quien
+se dice algo, y el predicado es lo que se dice del sujeto.
+
+Los sustantivos, adjetivos y verbos son categorias gramaticales fundamentales.
+La semantica analiza el significado de las palabras, mientras que la morfologia
+estudia la formacion de palabras mediante prefijos y sufijos.
+
+La literatura boliviana tiene grandes exponentes como:
+- Alcides Arguedas (Raza de bronce)
+- Adela Zamudio (de quien tubo una gran influencia en la educacion)
+- Nestor Taboada Teran
+
+GEOGRAFIA - Bolivia y sus regiones
+
+Bolivia tiene 9 departamentos: La Paz, Cochabamba, Santa Cruz, Oruro, Potosi,
+Tarija, Chuquisaca, Beni y Pando. La capital constitucional es Sucre, mientras
+que la sede de gobierno esta en La Paz.
+
+El lago Titicaca es el lago navegable mas alto del mundo (3810 m.s.n.m.).
+El salar de Uyuni es el mayor desierto de sal del planeta, con una extension
+de aproximadamente 10.582 km2.
+
+La cordillera de los Andes atraviesa el occidente del pais, dividiendose en
+dos ramas: la Cordillera Occidental y la Cordillera Oriental o Real.
+El Illimani (6439 m) y el Illampu (6368 m) son los nevados mas emblematicos.
+
+Bolivia es un pais megadiverso. Tiene varios pisos ecologicos: el altiplano,
+los valles, los yungas, la amazonia y el chaco. Cada region tiene su propia
+cultura, gastronomia y tradiciones.
+
+Datos curiosos:
+- La salteña es uno de los platos mas tipicos de Bolivia
+- El majadito es caracteristico de Santa Cruz
+- La morenada y la diablada son danzas tradicionales declaradas Patrimonio
+  Cultural Inmaterial de la Humanidad
+
+HISTORIA - Independencia de Bolivia
+
+El proceso de independencia de Bolivia comenzo en 1809 con los levantamientos
+en Chuquisaca y La Paz. Despues de 16 años de lucha, Bolivia proclamo su
+independencia el 6 de agosto de 1825.
+
+Simon Bolivar y Antonio Jose de Sucre fueron figuras fundamentales en la
+liberacion del territorio boliviano. La Asamblea Deliberante, reunida en
+Chuquisaca, decidio el nombre del nuevo pais en honor a Simon Bolivar.
+
+La constitucion politica del estado establece que Bolivia es un Estado
+Unitario Social de Derecho Plurinacional Comunitario.

@@ -1,0 +1,23 @@
+Biologia: La celula y sus partes
+
+La celula es la unidad basica de la vida. Tiene un nucleo que contiene el material genetico (ADN). Las mitocondrias son los organulos encargados de la respiracion celular. Los cloroplastos realizan la fotosintesis en las celulas vegetales. La membrana celular regula el transporte de sustancias. El citoplasma contiene los ribosomas donde se sintetizan las proteinas.
+
+Quimica: Los atomos y moleculas
+
+El atomo es la unidad fundamental de la materia. Tiene un nucleo con protones y neutrones, y electrones que orbitan alrededor. Los isotopos son atomos del mismo elemento con distinto numero de neutrones. Los enlaces quimicos pueden ser ionicos o covalentes. La tabla periodica organiza los elementos quimicos.
+
+Matematicas: Teorema de Pitagoras
+
+En un triangulo rectangulo, el cuadrado de la hipotenusa es igual a la suma de los cuadrados de los catetos. La geometria estudia las formas y sus propiedades. El algebra utiliza simbolos para representar numeros y operaciones. El calculo diferencial estudia las derivadas y las integrales.
+
+Fisica: Movimiento y fuerzas
+
+La velocidad es una magnitud vectorial que indica el cambio de posicion en el tiempo. La aceleracion mide el cambio de velocidad. La fuerza se define como masa por aceleracion (F = m x a). La energia puede ser cinetica o potencial. La presion es fuerza sobre area.
+
+Geografia de Bolivia
+
+Bolivia tiene 9 departamentos: La Paz, Cochabamba, Santa Cruz, Oruro, Potosi, Tarija, Chuquisaca, Beni y Pando. El lago Titicaca es el mas alto del mundo. El salar de Uyuni es el mayor desierto de sal del planeta. La cordillera de los Andes atraviesa el occidente del pais.
+
+Lenguaje: La comunicacion
+
+La sintaxis estudia la estructura de las oraciones. Los sustantivos, adjetivos y verbos son categorias gramaticales. La semantica analiza el significado de las palabras. La morfologia estudia la formacion de palabras mediante prefijos y sufijos.

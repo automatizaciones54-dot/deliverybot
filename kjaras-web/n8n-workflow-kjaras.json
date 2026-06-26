@@ -1,0 +1,129 @@
+{
+  "name": "Kjaras Bot - Pedidos WhatsApp",
+  "nodes": [
+    {
+      "id": "w1",
+      "name": "Webhook Entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "path": "kjaras-bot",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "kjaras-bot"
+    },
+    {
+      "id": "a1",
+      "name": "AI Agent Groq",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.1,
+      "position": [540, 300],
+      "parameters": {
+        "promptType": "define",
+        "prompt": "Eres un asistente de pedidos de KJARAS EL CUMPA BOTI.\n\nMENU:\nKjaras Tradicionales - Cerdo al carbon\nCostilla a la Caja China\nGarron Crocante\nColita de Cerdo\nChorizo Parrillero\n\nTODOS incluyen: Papa cocida, Mote tierno, Escabeche casero, Llajua especial\n\nINSTRUCCIONES:\n1. Saluda amablemente\n2. Toma el pedido: producto + cantidad\n3. Confirma el pedido\n4. Di que se comunicaran para coordinar\n\nAl final incluye RESUMEN del pedido.",
+        "options": {
+          "systemMessage": "Eres un asistente amable de Kjaras El Cumpa Boti."
+        },
+        "model": {
+          "values": {
+            "modelName": "llama3-70b-8192",
+            "temperature": 0.5,
+            "apiKey": "={{ $credentials.groqApi.apiKey }}",
+            "baseURL": "https://api.groq.com/openai/v1"
+          }
+        }
+      }
+    },
+    {
+      "id": "r1",
+      "name": "Enviar Respuesta Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 180],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.z-api.io/instances/' + $env.ZAPI_INSTANCE + '/token/' + $env.ZAPI_TOKEN + '/send-text' }}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.body.phone }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "r2",
+      "name": "Notificar Grupo Interno",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 480],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.z-api.io/instances/' + $env.ZAPI_INSTANCE + '/token/' + $env.ZAPI_TOKEN + '/send-text' }}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "CAMBIAME_POR_ID_GRUPO@g.us"
+            },
+            {
+              "name": "message",
+              "value": "= NUEVO PEDIDO\n\n{{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Entrada": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Groq": {
+      "ai_tool": [
+        [
+          {
+            "node": "Enviar Respuesta Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "Notificar Grupo Interno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

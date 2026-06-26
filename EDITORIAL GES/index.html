@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Validador Editorial — Demo GES</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1e293b;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+.card{max-width:800px;width:90%;background:white;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.12);overflow:hidden;}
+.hero{background:linear-gradient(135deg,#1B4F72,#2874A6);color:white;padding:40px;text-align:center;}
+.hero h1{font-size:28px;margin-bottom:8px;letter-spacing:-0.5px;}
+.hero p{color:#AED6F1;font-size:14px;margin-bottom:4px;}
+.hero .brand{font-size:12px;color:#85C1E9;margin-top:12px;letter-spacing:1px;text-transform:uppercase;}
+.hero .badge{display:inline-block;background:#F39C12;color:#1e293b;padding:4px 14px;border-radius:99px;font-size:12px;font-weight:700;margin-top:14px;}
+.content{padding:40px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}
+.stat{text-align:center;padding:16px;background:#f8fafc;border-radius:12px;}
+.stat .num{font-size:28px;font-weight:700;color:#1B4F72;}
+.stat .num.err{color:#dc2626;}
+.stat .num.ok{color:#059669;}
+.stat .lbl{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
+.features{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:32px;}
+.feature{display:flex;align-items:center;gap:10px;padding:12px;background:#f8fafc;border-radius:10px;font-size:13px;}
+.feature .icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.feature .icon.ok{background:#d1fae5;color:#059669;}
+.feature .icon.check{background:#dbeafe;color:#1d4ed8;}
+.ctas{display:flex;gap:12px;}
+.ctas a{flex:1;padding:14px;text-align:center;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;transition:all 0.2s;}
+.ctas a.primary{background:#1B4F72;color:white;}
+.ctas a.primary:hover{background:#154360;}
+.ctas a.secondary{background:#e2e8f0;color:#1e293b;}
+.ctas a.secondary:hover{background:#cbd5e1;}
+.files{margin-top:24px;padding:16px;background:#f8fafc;border-radius:12px;font-size:12px;}
+.files h3{font-size:13px;margin-bottom:10px;color:#475569;}
+.files li{padding:4px 0;color:#64748b;list-style:none;}
+.files li::before{content:"📄 ";font-size:11px;}
+footer{text-align:center;padding:24px 40px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="hero">
+    <h1>Validador Editorial v4.0</h1>
+    <p>Perfil personalizado para Editorial GES</p>
+    <div class="brand">Editorial GES • Textos Escolares • Santa Cruz • Bolivia</div>
+    <div class="badge">✅ Demo funcional — 124 errores corregidos</div>
+  </div>
+  <div class="content">
+    <div class="stats">
+      <div class="stat"><div class="num">970</div><div class="lbl">Palabras</div></div>
+      <div class="stat"><div class="num err">124</div><div class="lbl">Errores</div></div>
+      <div class="stat"><div class="num ok">124</div><div class="lbl">Corregidos</div></div>
+      <div class="stat"><div class="num">55s</div><div class="lbl">Velocidad</div></div>
+    </div>
+    <div class="features">
+      <div class="feature"><div class="icon check">✓</div> 926 términos científicos de 15 materias</div>
+      <div class="feature"><div class="icon check">✓</div> 252 regionalismos y autores bolivianos</div>
+      <div class="feature"><div class="icon check">✓</div> Reglas de texto escolar (unidades, notación)</div>
+      <div class="feature"><div class="icon check">✓</div> Reportes HTML con marca GES</div>
+      <div class="feature"><div class="icon ok">✓</div> 100% offline — manuscritos nunca salen de tu PC</div>
+      <div class="feature"><div class="icon ok">✓</div> Sin IA — reglas determinísticas, cero falsos positivos</div>
+      <div class="feature"><div class="icon ok">✓</div> Compatible DOCX, PDF, TXT, lote</div>
+      <div class="feature"><div class="icon ok">✓</div> Español boliviano + latinoamericano</div>
+    </div>
+    <div class="ctas">
+      <a href="demo_ges_manuscrito_reporte.html" class="primary" target="_blank">📊 Ver reporte HTML</a>
+      <a href="GUION_PRESENTACION_COMERCIAL.md" class="secondary" target="_blank">📋 Guion de venta</a>
+    </div>
+    <div class="files">
+      <h3>Archivos del demo:</h3>
+      <li>demo_ges_manuscrito.txt — Manuscrito original con errores</li>
+      <li>demo_ges_manuscrito_reporte.html — Reporte profesional con marca GES</li>
+      <li>demo_ges_manuscrito_corregido.docx — Versión corregida en Word</li>
+      <li>demo_ges_manuscrito_corregido.txt — Versión corregida en texto plano</li>
+      <li>demo_ges_manuscrito_comparativa.pdf — Original vs corregido</li>
+      <li>demo_ges_manuscrito_reporte.xlsx — Datos exportables</li>
+    </div>
+  </div>
+  <footer>
+    Validador Editorial v4.0 &copy; 2026 — Herramienta profesional para editoriales de texto escolar
+  </footer>
+</div>
+</body>
+</html>

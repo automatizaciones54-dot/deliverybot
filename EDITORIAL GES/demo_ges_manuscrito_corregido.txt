@@ -1,0 +1,136 @@
+ MANUSCRITO DEMO - EDITORIAL GES
+ Texto escolar de muestra para demostración comercial
+ Incluye errores típicos de manuscritos reales
+
+BIOLOGÍA - Unidad 1: La célula
+
+La célula es la unidad basica de la vida. Todos los seres vivos estan formados por células.
+Existen dos tipos principales: las células procariotas y las células eucariotas.
+
+Las células eucariotas tienen un núcleo definido que contiene el material genético (ADN).
+Dentro del núcleo se encuentra el nucléolo, responsable de la síntesis de ribosomas.
+En el citoplasma se encuentran los orgánulos como las mitocondrias (encargadas de la
+respiración celular), los ribosomas (síntesis de proteínas), el reticulo endoplasmatico
+y el aparato de Golgi.
+
+Las células vegetales además tienen cloroplastos, donde ocurre la fotosíntesis, y una
+pared celular que les da rigidez. La membrana celular regula el transporte de sustancias
+entre el interior y el exterior de la célula.
+
+Preguntas de autoevaluacion:
+1. Que es la célula?
+2. Cuales son las diferencias entre una célula procariota y una eucariota?
+3. Explique la función de las mitocondrias y los cloroplastos.
+
+FÍSICA - Unidad 3: Movimiento y fuerzas
+
+La velocidad es una magnitud vectorial que indica el cambio de posicion en el tiempo.
+Se calcula como: v  d / t, donde v es la velocidad, d es la distancia recorrida y
+t es el tiempo transcurrido.
+
+La aceleración mide el cambio de velocidad en función del tiempo.
+Un cuerpo acelera cuando su velocidad aumenta, desacelera cuando disminuye,
+y mantiene velocidad constante cuando no hay aceleración.
+
+Según la segunda ley de Newton, la fuerza se define como:
+F  m x a (fuerza  masa por aceleración)
+
+Si un objeto de 50kg se desplaza a una velocidad de 10m/s, su energía cinetica
+sería: Ec  1/2 x m x v2  1/2 x 50kg x (10m/s)2  2500 J
+
+Problemas:
+a) Calcule la fuerza necesaria para acelerar un objeto de 25kg a razón de 5m/s2
+b) Un auto viaja a 60km/h. Exprese esta velocidad en m/s.
+
+MATEMATICAS - Unidad 5: Geometría
+
+La geometría estudia las propiedades de las figuras en el plano y el espacio.
+El teorema de Pitagoras establece que en un triangulo rectangulo, el cuadrado
+de la hipotenusa es igual a la suma de los cuadrados de los catetos:
+
+a2  b2  c2
+
+donde c es la hipotenusa y a, b son los catetos.
+
+Ejemplo: Si un triangulo tiene catetos de 3cm y 4cm, la hipotenusa mide 5cm.
+Comprobacion: 32  42  9  16  25  52
+
+El álgebra es una rama de la matemática que utiliza simbolos para representar
+números y operaciones. Las ecuaciones de primer grado tienen la forma ax  b  0.
+El cálculo diferencial estudia las derivadas, mientras que el cálculo integral
+estudia las integrales.
+
+QUÍMICA - Unidad 2: Los átomos y la tabla periódica
+
+El átomo es la unidad fundamental de la materia. Esta formado por un núcleo
+que contiene protones (carga positiva) y neutrones (carga neutra), y una nube
+de electrones (carga negativa) que orbitan alrededor del núcleo.
+
+El número atómico (Z) indica la cantidad de protones en el núcleo.
+La masa atómica (A) es la suma de protones y neutrones.
+Los isótopos son átomos del mismo elemento con distinto número de neutrones.
+
+La tabla periódica organiza los elementos químicos según su número atómico.
+Los elementos se clasifican en metales, no metales y metaloides.
+Los enlaces químicos pueden ser ionicos (transferencia de electrones) o
+covalentes (comparticion de electrones).
+
+Ejercicios:
+- Escriba la configuracion electronica del oxigeno (Z  8)
+- Que diferencia hay entre un átomo y una molécula?
+
+LENGUAJE - Unidad 1: La comunicación
+
+La comunicación es el proceso mediante el cual los seres humanos intercambiamos
+información. Los elementos de la comunicación son: el emisor, el receptor,
+el mensaje, el canal, el código y el contexto.
+
+La sintaxis estudia la estructura de las oraciones. Una oración esta compuesta
+por un sujeto y un predicado. El sujeto es la persona, animal o cosa de quien
+se dice algo, y el predicado es lo que se dice del sujeto.
+
+Los sustantivos, adjetivos y verbos son categorias gramaticales fundamentales.
+La semántica analiza el significado de las palabras, mientras que la morfología
+estudia la formación de palabras mediante prefijos y sufijos.
+
+La literatura boliviana tiene grandes exponentes como:
+- Alcides Arguedas (Raza de bronce)
+- Adela Zamudio (de quien tubo una gran influencia en la educacion)
+- Nestor Taboada Teran
+
+GEOGRAFÍA - Bolivia y sus regiones
+
+Bolivia tiene 9 departamentos: La Paz, Cochabamba, Santa Cruz, Oruro, Potosi,
+Tarija, Chuquisaca, Beni y Pando. La capital constitucional es Sucre, mientras
+que la sede de gobierno esta en La Paz.
+
+El lago Titicaca es el lago navegable más alto del mundo (3810 m.s.n.m.).
+El salar de Uyuni es el mayor desierto de sal del planeta, con una extensión
+de aproximadamente 10.582 km2.
+
+La cordillera de los Andes atraviesa el occidente del país, dividiendose en
+dos ramas: la Cordillera Occidental y la Cordillera Oriental o Real.
+El Illimani (6439 m) y el Illampu (6368 m) son los nevados más emblematicos.
+
+Bolivia es un país megadiverso. Tiene varios pisos ecologicos: el altiplano,
+los valles, los yungas, la Amazonía y el chaco. Cada región tiene su propia
+cultura, gastronomía y tradiciones.
+
+Datos curiosos:
+- La salteña es uno de los platos más típicos de Bolivia
+- El majadito es característico de Santa Cruz
+- La morenada y la diablada son danzas tradicionales declaradas Patrimonio
+  Cultural Inmaterial de la Humanidad
+
+HISTORIA - Independencia de Bolivia
+
+El proceso de independencia de Bolivia comenzo en 1809 con los levantamientos
+en Chuquisaca y La Paz. Después de 16 años de lucha, Bolivia proclamo su
+independencia el 6 de agosto de 1825.
+
+Simon Bolivar y Antonio Jose de Sucre fueron figuras fundamentales en la
+liberacion del territorio boliviano. La Asamblea Deliberante, reunida en
+Chuquisaca, decidio el nombre del nuevo país en honor a Simon Bolivar.
+
+La constitución política del estado establece que Bolivia es un Estado
+Unitario Social de Derecho Plurinacional Comunitario.
