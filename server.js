@@ -8,6 +8,15 @@ const config = require('./config');
 const db = require('./database');
 const { MercadoPagoConfig, Preference } = require('mercadopago');
 
+const TOKEN_FILE = process.env.TOKEN_FILE || path.join(__dirname, '.panel_token');
+
+function loadToken() {
+  try { return fs.readFileSync(TOKEN_FILE, 'utf8').trim(); } catch { return null; }
+}
+function saveToken(token) {
+  fs.writeFileSync(TOKEN_FILE, token);
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -22,6 +31,8 @@ if (config.MERCADO_PAGO_ACCESS_TOKEN) {
 function notifyClients() {
   io.emit('orders', db.getAllOrders());
 }
+
+let validToken = loadToken();
 
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="es">
@@ -193,7 +204,7 @@ function conectarSocket() {
 app.get('/qr.png', (req, res) => {
   const p = path.join(__dirname, 'qr.png');
   if (fs.existsSync(p)) return res.sendFile(p);
-  res.status(404).type('text').send('⚠️ QR no disponible aún. Revisá los logs del deploy.');
+  res.status(404).type('text').send('⚠️ QR no disponible aún. Revisá los logs.');
 });
 
 app.get('/', (req, res) => {
@@ -204,6 +215,7 @@ app.post('/api/login', (req, res) => {
   const ok = req.body.pin === config.WEB_PANEL_PIN;
   if (ok) {
     validToken = crypto.randomBytes(16).toString('hex');
+    saveToken(validToken);
   }
   res.json({ ok, token: ok ? validToken : null });
 });
@@ -279,8 +291,7 @@ app.post('/api/order/:id/liberar', requireAuth, (req, res) => {
   res.json({ ok });
 });
 
-// ── AUTENTICACIÓN SIMPLE ────────────────────
-let validToken = null;
+// El token ya se carga al inicio desde archivo
 
 function requireAuth(req, res, next) {
   const token = req.headers['x-token'] || req.query.token;

@@ -88,6 +88,18 @@ function randomDelay(min, max) {
   return new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * (max - min + 1)) + min));
 }
 
+function humanDelay() {
+  const base = Math.random() * 3000 + 1000;
+  const jitter = Math.random() * 1000;
+  return new Promise(r => setTimeout(r, base + jitter));
+}
+
+function typingDelay() {
+  const base = Math.random() * 2000 + 500;
+  const jitter = Math.random() * 800;
+  return new Promise(r => setTimeout(r, base + jitter));
+}
+
 // ── HELPERS DE AUDIO ───────────────────────────
 async function downloadAudio(url) {
   try {
@@ -195,6 +207,10 @@ async function safeSend(phone, text) {
   if (!sock) return;
   const jid = phoneToJid(phone);
   if (!jid) return;
+  
+  const allowed = await checkRateLimit(phone);
+  if (!allowed) return;
+  
   try {
     await sock.sendMessage(jid, { text });
   } catch (e) {
@@ -210,11 +226,41 @@ function saveBotReply(phone, text) {
   if (st.history.length > 10) st.history = st.history.slice(-10);
 }
 
+async // Rate limit control per phone number
+const sentMessages = new Map();
+
+async function checkRateLimit(phone) {
+  const key = phone;
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute
+  
+  if (!sentMessages.has(key)) {
+    sentMessages.set(key, []);
+  }
+  
+  const messages = sentMessages.get(key);
+  const validMessages = messages.filter(time => now - time < windowMs);
+  
+  if (validMessages.length >= 20) {
+    console.log(`⏱️ Rate limit hit for ${phone}: ${validMessages.length}/20 per minute`);
+    return false;
+  }
+  
+  validMessages.push(now);
+  sentMessages.set(key, validMessages);
+  
+  return true;
+}
+
 async function replyWithTyping(jid, msg, text, phoneForHistory) {
   if (!sock) { console.error('replyWithTyping: sock null'); return; }
+  const phone = phoneForHistory || jidToPhone(jid);
+  if (phone && !(await checkRateLimit(phone))) return;
   try {
     await sock.sendPresenceUpdate('composing', jid);
-    await randomDelay(500, 1000);
+    await typingDelay();
+    await sock.sendPresenceUpdate('paused', jid);
+    await humanDelay();
     await sock.readMessages([msg.key]);
     await sock.sendMessage(jid, { text }, { quoted: msg, ephemeralExpiration: undefined });
   } catch (e) {
@@ -231,9 +277,19 @@ async function sendWithTyping(phone, text) {
   if (!sock) { console.error('sendWithTyping: sock null'); return; }
   const jid = phoneToJid(phone);
   if (!jid) { console.error('sendWithTyping: jid vacio para phone:', phone); return; }
+  
+  // Rate limit check before sending
+  const allowed = await checkRateLimit(phone);
+  if (!allowed) {
+    console.log(`⏱️ Rate limit para ${phone}, mensaje omitido: ${text.substring(0, 50)}...`);
+    return;
+  }
+  
   try {
     await sock.sendPresenceUpdate('composing', jid);
-    await randomDelay(500, 1000);
+    await typingDelay();
+    await sock.sendPresenceUpdate('paused', jid);
+    await humanDelay();
     await sock.sendMessage(jid, { text });
   } catch (e) {
     try {
@@ -245,6 +301,8 @@ async function sendWithTyping(phone, text) {
 }
 
 // ── TIMEOUT PARA PEDIDOS ──────────────────────
+let lastTimeoutIds = new Set();
+
 setInterval(() => {
   const pending = db.getPendingOrders();
   const now = Date.now();
@@ -256,19 +314,34 @@ setInterval(() => {
     const elapsed = (now - createdAt) / 1000 / 60;
 
     if (totalWorkers === 0 && !order.notifiedTimeout) {
-      safeSend(getClientJid(order), `⚠️ *Pedido #${order.id}* creado.\nActualmente no hay repartidores registrados en el sistema. Contactate con la administración para coordinar la entrega.\nSi querés cancelar, escribí "cancelar".`);
+      const msg = `⚠️ *Pedido #${order.id}* creado.\nActualmente no hay repartidores registrados en el sistema. Contactate con la administración para coordinar la entrega.\nSi querés cancelar, escribí "cancelar".`;
+      if (!lastTimeoutIds.has(order.id)) {
+        safeSend(getClientJid(order), msg);
+        lastTimeoutIds.add(order.id);
+        if (order.id) setTimeout(() => lastTimeoutIds.delete(order.id), 60000);
+      }
       db.markOrderNotified(order.id);
       continue;
     }
 
     if (availableWorkers === 0 && elapsed > 5 && !order.notifiedTimeout && totalWorkers > 0) {
-      safeSend(getClientJid(order), `⏳ *Pedido #${order.id}* — todos los repartidores están ocupados.\nEn cuanto alguien se libere te asignamos uno. Gracias por la paciencia.`);
+      const msg = `⏳ *Pedido #${order.id}* — todos los repartidores están ocupados.\nEn cuanto alguien se libere te asignamos uno. Gracias por la paciencia.`;
+      if (!lastTimeoutIds.has(order.id)) {
+        safeSend(getClientJid(order), msg);
+        lastTimeoutIds.add(order.id);
+        if (order.id) setTimeout(() => lastTimeoutIds.delete(order.id), 60000);
+      }
       db.markOrderNotified(order.id);
       continue;
     }
 
     if (elapsed > 15 && !order.notifiedTimeout && totalWorkers > 0) {
-      safeSend(getClientJid(order), `⏳ *Pedido #${order.id}* aún no tiene repartidor.\nLos repartidores están disponibles pero nadie tomó tu pedido todavía. Si querés cancelar, escribí "cancelar".`);
+      const msg = `⏳ *Pedido #${order.id}* aún no tiene repartidor.\nLos repartidores están disponibles pero nadie tomó tu pedido todavía. Si querés cancelar, escribí "cancelar".`;
+      if (!lastTimeoutIds.has(order.id)) {
+        safeSend(getClientJid(order), msg);
+        lastTimeoutIds.add(order.id);
+        if (order.id) setTimeout(() => lastTimeoutIds.delete(order.id), 60000);
+      }
       db.markOrderNotified(order.id);
       continue;
     }
@@ -276,7 +349,8 @@ setInterval(() => {
     if (elapsed > 30) {
       const result = db.cancelOrder(order.id, order.phone);
       if (result) {
-        safeSend(getClientJid(order), `❌ *Pedido #${order.id} cancelado automáticamente*\nNo se pudo asignar un repartidor. Disculpá las molestias.\nPodés hacer un nuevo pedido cuando quieras.`);
+        const msg = `❌ *Pedido #${order.id} cancelado automáticamente*\nNo se pudo asignar un repartidor. Disculpá las molestias.\nPodés hacer un nuevo pedido cuando quieras.`;
+        safeSend(getClientJid(order), msg);
         if (isGroupConfigured()) {
           safeSend(config.GRUPO_WORKERS_ID, `❌ *Pedido #${order.id} cancelado automáticamente* por falta de repartidores.`);
         }
@@ -880,7 +954,7 @@ async function initWhatsApp() {
     auth: state,
     browser: Browsers.windows('Chrome'),
     syncFullHistory: false,
-    markOnlineOnConnect: true,
+    markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
   });
 
@@ -902,6 +976,8 @@ async function initWhatsApp() {
     contactStore.set(lid, { ...contactStore.get(lid) || {}, id: lid, phoneNumber: pn, pn });
   });
 
+  let reconnectAttempts = 0;
+
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       try {
@@ -911,9 +987,11 @@ async function initWhatsApp() {
             console.error('Error generando QR:', err.message);
             return;
           }
-          console.log(`🖼️  QR guardado como imagen: ${qrPath}`);
+          console.log(`🖼️  QR guardado: ${qrPath}`);
+          const qrBase64 = require('fs').readFileSync(qrPath, 'base64');
+          web.emit('qr', qrBase64);
+          console.log('📱 Nuevo QR disponible para escanear desde el panel web');
         });
-        console.log('📱 Escanea el QR en https://deliverybot-curious-meadowlark-9263.fly.dev/qr.png');
       } catch (e) {
         console.error('Error en QR handler:', e.message);
       }
@@ -945,9 +1023,12 @@ async function initWhatsApp() {
     if (connection === 'close') {
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       if (shouldReconnect) {
-        console.log('❌ Desconectado, reconectando en 5 seg...');
-        setTimeout(initWhatsApp, 5000);
+        const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), 300000);
+        reconnectAttempts++;
+        console.log(`❌ Desconectado, reconectando en ${Math.round(delay/1000)}s (intento ${reconnectAttempts})...`);
+        setTimeout(() => { reconnectAttempts = 0; initWhatsApp(); }, delay);
       } else {
+        reconnectAttempts = 0;
         console.log('❌ Sesión cerrada. Borrando sesión y generando nuevo QR...');
         const authPath = config.AUTH_PATH;
         try {
@@ -960,6 +1041,16 @@ async function initWhatsApp() {
   });
 
   let msgQueue = Promise.resolve();
+
+  // Limpieza de rate limit cache cada 5 min
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, times] of sentMessages.entries()) {
+      const valid = times.filter(t => now - t < 3600000);
+      if (valid.length) sentMessages.set(key, valid);
+      else sentMessages.delete(key);
+    }
+  }, 300000);
 
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type === 'notify' || type === 'append') {

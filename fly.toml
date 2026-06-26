@@ -5,6 +5,7 @@ primary_region = "gru"
   PORT = "8080"
   DB_PATH = "/data/database.json"
   AUTH_PATH = "/data/.wwebjs_auth"
+  TOKEN_FILE = "/data/.panel_token"
 
 [[services]]
   protocol = "tcp"
@@ -19,6 +20,17 @@ primary_region = "gru"
     port = 443
     handlers = ["tls", "http"]
 
+  [[services.tcp_checks]]
+    interval = 10000
+    timeout = 2000
+    grace_period = "30s"
+
 [[mounts]]
   source = "deliverybot_data"
   destination = "/data"
+
+[experimental]
+  auto_rollback = true
+
+[processes]
+  app = "node index.js"
