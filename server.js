@@ -6,6 +6,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const config = require('./config');
 const db = require('./database');
+const wa = require('./whatsapp-cloud');
 const { MercadoPagoConfig, Preference } = require('mercadopago');
 
 const TOKEN_FILE = process.env.TOKEN_FILE || path.join(__dirname, '.panel_token');
@@ -22,6 +23,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 let mpClient = null;
 if (config.MERCADO_PAGO_ACCESS_TOKEN) {
@@ -33,8 +35,17 @@ function notifyClients() {
 }
 
 let validToken = loadToken();
-
 const loginAttempts = new Map();
+
+let notificationFns = {
+  onAssigned: null,
+  onEnCamino: null,
+  onEntregado: null,
+};
+
+function setNotificationFunctions(fns) {
+  notificationFns = { ...notificationFns, ...fns };
+}
 
 app.post('/api/login', (req, res) => {
   const ip = req.ip || req.connection?.remoteAddress || 'unknown';
@@ -93,11 +104,6 @@ body{background:#f0f2f5;padding:16px}
 #login input{width:100%;padding:10px;margin:10px 0;border:1px solid #ddd;border-radius:8px;font-size:16px;text-align:center}
 #login button{width:100%;padding:10px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer}
 #login .error{color:#dc3545;font-size:13px;margin-top:6px}
-#qr-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:1000}
-#qr-modal .qr-box{background:#fff;padding:24px;border-radius:12px;text-align:center;max-width:320px}
-#qr-modal img{width:100%;max-width:280px;border-radius:8px}
-#qr-modal h2{margin-bottom:12px;color:#1a1a2e;font-size:18px}
-#qr-modal p{color:#666;font-size:14px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -108,13 +114,6 @@ body{background:#f0f2f5;padding:16px}
     <button type="submit">Entrar</button>
     <div class="error" id="loginError"></div>
   </form>
-</div>
-<div id="qr-modal">
-  <div class="qr-box">
-    <h2>📱 Escanea el QR</h2>
-    <img id="qr-img" src="" alt="QR Code">
-    <p>Abre WhatsApp > Dispositivos vinculados > Vincular dispositivo</p>
-  </div>
 </div>
 <div id="app" style="display:none">
   <div class="header">
@@ -132,7 +131,6 @@ body{background:#f0f2f5;padding:16px}
   <div id="lista"></div>
 </div>
 <script>
-const PIN = '';
 let token = null;
 let filtroActual = 'todas';
 let orders = [];
@@ -229,27 +227,29 @@ function conectarSocket() {
   if (socket) socket.disconnect();
   socket = io({ auth: { token } });
   socket.on('orders', d=>{orders=d;render()});
-  socket.on('qr', base64=>{
-    document.getElementById('qr-img').src='data:image/png;base64,'+base64;
-    document.getElementById('qr-modal').style.display='flex';
-  });
-  socket.on('connected', ()=>{
-    document.getElementById('qr-modal').style.display='none';
-  });
   socket.on('connect_error', ()=>{setTimeout(conectarSocket, 3000)});
 }
 </script>
 </body>
 </html>`;
 
-app.get('/qr.png', (req, res) => {
-  const p = path.join(__dirname, 'qr.png');
-  if (fs.existsSync(p)) return res.sendFile(p);
-  res.status(404).type('text').send('⚠️ QR no disponible aún. Revisá los logs.');
-});
-
 app.get('/', (req, res) => {
   res.send(DASHBOARD_HTML);
+});
+
+app.get('/webhook', (req, res) => {
+  const challenge = wa.verifyWebhook(req);
+  if (challenge) {
+    return res.status(200).send(challenge);
+  }
+  res.status(403).send('Forbidden');
+});
+
+app.post('/webhook', (req, res) => {
+  res.status(200).send('OK');
+  setImmediate(() => {
+    wa.processWebhookPayload(req.body);
+  });
 });
 
 app.get('/api/orders', requireAuth, (req, res) => {
@@ -258,13 +258,23 @@ app.get('/api/orders', requireAuth, (req, res) => {
 
 app.post('/api/order/:id/camino', requireAuth, async (req, res) => {
   const ok = db.markAsEnCamino(parseInt(req.params.id));
-  if (ok) { notifyClients(); await emitEvent('camino', parseInt(req.params.id)); }
+  if (ok) {
+    notifyClients();
+    if (notificationFns.onEnCamino) {
+      await notificationFns.onEnCamino(parseInt(req.params.id));
+    }
+  }
   res.json({ ok });
 });
 
 app.post('/api/order/:id/entregar', requireAuth, async (req, res) => {
   const ok = db.markAsEntregado(parseInt(req.params.id));
-  if (ok) { notifyClients(); await emitEvent('entregado', parseInt(req.params.id)); }
+  if (ok) {
+    notifyClients();
+    if (notificationFns.onEntregado) {
+      await notificationFns.onEntregado(parseInt(req.params.id));
+    }
+  }
   res.json({ ok });
 });
 
@@ -323,27 +333,12 @@ app.post('/api/order/:id/liberar', requireAuth, (req, res) => {
   res.json({ ok });
 });
 
-// El token ya se carga al inicio desde archivo
-
 function requireAuth(req, res, next) {
   const token = req.headers['x-token'] || req.query.token;
   if (!validToken || token !== validToken) {
     return res.status(401).json({ ok: false, error: 'No autorizado' });
   }
   next();
-}
-
-// El endpoint /api/login NO requiere auth (es donde se obtiene el token)
-// Las rutas / y /qr.png tampoco
-
-let eventCallback = null;
-
-function onEvent(cb) {
-  eventCallback = cb;
-}
-
-function emitEvent(type, orderId) {
-  if (eventCallback) eventCallback(type, orderId);
 }
 
 io.use((socket, next) => {
@@ -358,6 +353,20 @@ io.on('connection', (socket) => {
   socket.emit('orders', db.getAllOrders());
 });
 
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token === process.env.WEBHOOK_VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+  res.sendStatus(403);
+});
+
+app.post('/webhook', (req, res) => {
+  res.sendStatus(200);
+});
+
 function start(port) {
   server.listen(port, '0.0.0.0', () => {
     console.log(`🌐 Panel web: http://0.0.0.0:${port}`);
@@ -368,4 +377,4 @@ function emitSocket(event, data) {
   io.emit(event, data);
 }
 
-module.exports = { start, notifyClients, onEvent, emit: emitSocket };
+module.exports = { start, notifyClients, setNotificationFunctions, emit: emitSocket };

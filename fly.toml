@@ -6,6 +6,7 @@ primary_region = "gru"
   DB_PATH = "/data/database.json"
   AUTH_PATH = "/data/.wwebjs_auth"
   TOKEN_FILE = "/data/.panel_token"
+  WEBHOOK_VERIFY_TOKEN = "deliverybot_verify_2026"
 
 [[services]]
   protocol = "tcp"
